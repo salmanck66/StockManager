@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JCClub · Stock Manager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --black: #0a0a0a;
+    --white: #ffffff;
+    --grey-1: #f5f5f5;
+    --grey-2: #e8e8e8;
+    --grey-3: #999;
+    --grey-4: #555;
+    --accent: #111;
+    --danger: #e53e3e;
+    --success: #22c55e;
+    --radius: 10px;
+    --shadow: 0 2px 16px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--grey-1);
+    color: var(--black);
+    min-height: 100vh;
+  }
+
+  /* ─── PIN SCREEN ─── */
+  #pin-screen {
+    position: fixed; inset: 0;
+    background: var(--black);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 999;
+    gap: 24px;
+    padding: 32px;
+  }
+  #pin-screen .logo {
+    font-size: 28px; font-weight: 700; color: var(--white);
+    letter-spacing: 3px;
+  }
+  #pin-screen .sub {
+    font-size: 13px; color: var(--grey-3); letter-spacing: 1px;
+  }
+  #pin-input {
+    width: 100%; max-width: 300px;
+    padding: 14px 20px;
+    font-family: 'Jost', sans-serif;
+    font-size: 18px; letter-spacing: 4px;
+    text-align: center;
+    background: #1a1a1a;
+    border: 1.5px solid #333;
+    border-radius: var(--radius);
+    color: var(--white);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #pin-input:focus { border-color: #555; }
+  #pin-input.error { border-color: var(--danger); animation: shake 0.3s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  #pin-btn {
+    width: 100%; max-width: 300px;
+    padding: 14px;
+    background: var(--white); color: var(--black);
+    border: none; border-radius: var(--radius);
+    font-family: 'Jost', sans-serif;
+    font-size: 15px; font-weight: 600;
+    letter-spacing: 1px; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  #pin-btn:hover { opacity: 0.85; }
+  #pin-error { color: #ff6b6b; font-size: 13px; height: 18px; }
+
+  /* ─── APP ─── */
+  #app { display: none; padding-bottom: 80px; }
+
+  header {
+    background: var(--black);
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  header .logo { font-size: 20px; font-weight: 700; color: var(--white); letter-spacing: 2px; }
+  header .stock-count { font-size: 12px; color: var(--grey-3); letter-spacing: 1px; }
+  #logout-btn {
+    background: none; border: 1px solid #333; border-radius: 6px;
+    color: var(--grey-3); font-family: 'Jost', sans-serif;
+    font-size: 11px; letter-spacing: 1px; padding: 6px 10px;
+    cursor: pointer;
+  }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex; background: var(--white);
+    border-bottom: 1px solid var(--grey-2);
+    position: sticky; top: 56px; z-index: 9;
+  }
+  .tab-btn {
+    flex: 1; padding: 13px 8px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
+    background: none; border: none; cursor: pointer;
+    color: var(--grey-3); border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-btn.active { color: var(--black); border-bottom-color: var(--black); }
+
+  /* ─── ADD ITEM FORM ─── */
+  .section { padding: 20px; }
+
+  .card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1.5px; color: var(--grey-3);
+    text-transform: uppercase; margin-bottom: 16px;
+  }
+
+  /* Photo upload */
+  .photo-area {
+    width: 100%; aspect-ratio: 4/3;
+    border: 2px dashed var(--grey-2);
+    border-radius: var(--radius);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; cursor: pointer;
+    overflow: hidden; position: relative;
+    background: var(--grey-1);
+    transition: border-color 0.2s;
+    margin-bottom: 12px;
+  }
+  .photo-area:hover { border-color: #aaa; }
+  .photo-area img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .photo-area .ph-icon { font-size: 32px; }
+  .photo-area .ph-text { font-size: 13px; color: var(--grey-3); }
+
+  .photo-btns { display: flex; gap: 10px; margin-bottom: 16px; }
+  .photo-btn {
+    flex: 1; padding: 10px;
+    border: 1.5px solid var(--grey-2);
+    border-radius: 8px; background: var(--white);
+    font-family: 'Jost', sans-serif;
+    font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: border-color 0.2s;
+  }
+  .photo-btn:hover { border-color: #999; }
+
+  /* Item name input */
+  .field-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1px; color: var(--grey-4);
+    text-transform: uppercase; margin-bottom: 8px;
+    display: block;
+  }
+  .text-input {
+    width: 100%;
+    padding: 12px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 15px;
+    border: 1.5px solid var(--grey-2);
+    border-radius: 8px; outline: none;
+    background: var(--white);
+    color: var(--black);
+    transition: border-color 0.2s;
+  }
+  .text-input:focus { border-color: var(--black); }
+
+  /* Size grid */
+  .sizes-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .size-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .size-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1px; color: var(--grey-4);
+    text-transform: uppercase;
+  }
+  .qty-control { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .qty-btn {
+    width: 32px; height: 28px;
+    border: 1.5px solid var(--grey-2);
+    border-radius: 6px; background: var(--white);
+    font-size: 16px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; user-select: none;
+    line-height: 1;
+  }
+  .qty-btn:active { background: var(--grey-1); transform: scale(0.95); }
+  .qty-display {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--grey-2);
+    border-radius: 8px;
+    font-family: 'Jost', sans-serif;
+    font-size: 16px; font-weight: 600;
+    text-align: center; outline: none;
+    color: var(--black); background: var(--white);
+    transition: border-color 0.2s;
+  }
+  .qty-display:focus { border-color: var(--black); }
+
+  /* Save button */
+  .save-btn {
+    width: 100%; padding: 15px;
+    background: var(--black); color: var(--white);
+    border: none; border-radius: var(--radius);
+    font-family: 'Jost', sans-serif;
+    font-size: 15px; font-weight: 600; letter-spacing: 1px;
+    cursor: pointer; transition: opacity 0.2s;
+    margin-top: 4px;
+  }
+  .save-btn:hover { opacity: 0.85; }
+  .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .save-btn.loading { opacity: 0.6; }
+
+  /* Upload status */
+  #upload-status {
+    font-size: 12px; color: var(--grey-3);
+    text-align: center; margin-top: 6px; min-height: 18px;
+  }
+
+  /* ─── STOCK LIST ─── */
+  .search-bar {
+    display: flex; gap: 10px; margin-bottom: 16px;
+  }
+  .search-input {
+    flex: 1; padding: 11px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 14px;
+    border: 1.5px solid var(--grey-2);
+    border-radius: 8px; outline: none; background: var(--white);
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: #aaa; }
+
+  .stock-item {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .stock-item-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .stock-thumb {
+    width: 56px; height: 56px;
+    border-radius: 8px; object-fit: cover;
+    background: var(--grey-1);
+    flex-shrink: 0;
+  }
+  .stock-thumb-placeholder {
+    width: 56px; height: 56px;
+    border-radius: 8px; background: var(--grey-1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .stock-meta { flex: 1; min-width: 0; }
+  .stock-name {
+    font-size: 15px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+  .stock-summary { font-size: 12px; color: var(--grey-3); }
+  .stock-chevron { font-size: 18px; color: var(--grey-3); transition: transform 0.2s; }
+  .stock-item.open .stock-chevron { transform: rotate(180deg); }
+
+  .stock-sizes {
+    display: none; padding: 0 16px 16px;
+    border-top: 1px solid var(--grey-1);
+    padding-top: 14px;
+  }
+  .stock-item.open .stock-sizes { display: block; }
+
+  .sizes-edit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+  
+  .stock-actions { display: flex; gap: 10px; }
+  .update-btn {
+    flex: 1; padding: 10px;
+    background: var(--black); color: var(--white);
+    border: none; border-radius: 8px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .update-btn:hover { opacity: 0.8; }
+  .delete-btn {
+    padding: 10px 16px;
+    background: none; color: var(--danger);
+    border: 1.5px solid #fecaca;
+    border-radius: 8px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .delete-btn:hover { background: #fff5f5; }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--grey-3);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--black); color: var(--white);
+    padding: 12px 24px; border-radius: 100px;
+    font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
+    opacity: 0; transition: all 0.3s; z-index: 100;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { background: #16a34a; }
+  #toast.error { background: var(--danger); }
+
+  /* Hidden inputs */
+  input[type="file"] { display: none; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: none; align-items: center; justify-content: center;
+    border-radius: var(--radius);
+    font-size: 13px; color: var(--grey-4);
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--grey-2);
+    border-top-color: var(--black);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="pin-screen">
+  <div class="logo">JCCLUB</div>
+  <div class="sub">STOCK MANAGER</div>
+  <input type="password" id="pin-input" placeholder="Enter PIN" maxlength="20"
+    onkeydown="if(event.key==='Enter') checkPin()" autocomplete="off">
+  <div id="pin-error"></div>
+  <button id="pin-btn" onclick="checkPin()">UNLOCK</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="logo">JCCLUB</div>
+    <div class="stock-count" id="item-count">0 items</div>
+    <button id="logout-btn" onclick="logout()">LOCK</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('add')">＋ Add Item</button>
+    <button class="tab-btn" onclick="switchTab('stock')">📦 Stock</button>
+  </div>
+
+  <!-- ADD TAB -->
+  <div id="tab-add" class="section">
+
+    <!-- Photo -->
+    <div class="card">
+      <div class="card-title">Product Photo</div>
+      <div class="photo-area" id="photo-area" onclick="document.getElementById('file-gallery').click()">
+        <span class="ph-icon">🖼️</span>
+        <span class="ph-text">Tap to choose photo</span>
+      </div>
+      <div class="photo-btns">
+        <button class="photo-btn" onclick="document.getElementById('file-camera').click()">
+          📷 Camera
+        </button>
+        <button class="photo-btn" onclick="document.getElementById('file-gallery').click()">
+          🖼️ Gallery
+        </button>
+        <button class="photo-btn" id="remove-photo-btn" style="display:none;color:#e53e3e;border-color:#fecaca" onclick="removePhoto()">
+          🗑 Remove
+        </button>
+      </div>
+      <input type="file" id="file-camera" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+      <input type="file" id="file-gallery" accept="image/*" onchange="handlePhoto(this)">
+      <div id="upload-status"></div>
+    </div>
+
+    <!-- Item Name -->
+    <div class="card">
+      <div class="card-title">Item Name</div>
+      <input type="text" class="text-input" id="item-name" placeholder="e.g. Brazil Home Kit 2024">
+    </div>
+
+    <!-- Sizes -->
+    <div class="card">
+      <div class="card-title">Stock by Size</div>
+      <div class="sizes-grid" id="add-sizes-grid"></div>
+    </div>
+
+    <button class="save-btn" id="save-btn" onclick="saveItem()">SAVE TO STOCK</button>
+  </div>
+
+  <!-- STOCK TAB -->
+  <div id="tab-stock" class="section" style="display:none">
+    <div class="search-bar">
+      <input type="text" class="search-input" id="search-input" placeholder="Search items…" oninput="renderStock()">
+    </div>
+    <div id="stock-list"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── CONFIG ─────────────────────────────────────────────────────────
+const CORRECT_PIN = 'jcclub916';
+const STORAGE_KEY = 'jcclub_stock_v1';
+const AUTH_KEY    = 'jcclub_auth';
+const SIZES       = ['S','M','L','XL','XXL'];
+
+// ImgBB — paste your free API key here
+// Get it from: https://api.imgbb.com/ (free account → API)
+const IMGBB_KEY = 'eefc443b08b231582bb6f78e52202294';
+
+// ─── INIT ───────────────────────────────────────────────────────────
+let currentPhotoUrl = null;
+let currentPhotoFile = null;
+let editingId = null;
+let stock = [];
+
+function init() {
+  stock = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (auth === 'true') {
+    showApp();
+  }
+  buildSizesGrid('add-sizes-grid', SIZES.reduce((a,s) => ({...a,[s]:0}), {}));
+  updateCount();
+}
+
+// ─── PIN ────────────────────────────────────────────────────────────
+function checkPin() {
+  const val = document.getElementById('pin-input').value.trim();
+  const inp = document.getElementById('pin-input');
+  const err = document.getElementById('pin-error');
+  if (val === CORRECT_PIN) {
+    localStorage.setItem(AUTH_KEY, 'true');
+    showApp();
+  } else {
+    err.textContent = 'Incorrect PIN. Try again.';
+    inp.classList.add('error');
+    inp.value = '';
+    setTimeout(() => { inp.classList.remove('error'); err.textContent = ''; }, 1500);
+  }
+}
+
+function showApp() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderStock();
+}
+
+function logout() {
+  localStorage.removeItem(AUTH_KEY);
+  location.reload();
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='add')||(i===1&&tab==='stock')));
+  document.getElementById('tab-add').style.display   = tab === 'add'   ? '' : 'none';
+  document.getElementById('tab-stock').style.display = tab === 'stock' ? '' : 'none';
+  if (tab === 'stock') renderStock();
+}
+
+// ─── PHOTO ──────────────────────────────────────────────────────────
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  currentPhotoFile = file;
+  currentPhotoUrl  = null;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const area = document.getElementById('photo-area');
+    area.innerHTML = `<img src="${e.target.result}" alt="preview">`;
+    document.getElementById('remove-photo-btn').style.display = '';
+    document.getElementById('upload-status').textContent = 'Photo ready — will upload on save';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function removePhoto() {
+  currentPhotoFile = null;
+  currentPhotoUrl  = null;
+  const area = document.getElementById('photo-area');
+  area.innerHTML = `<span class="ph-icon">🖼️</span><span class="ph-text">Tap to choose photo</span>`;
+  document.getElementById('remove-photo-btn').style.display = 'none';
+  document.getElementById('upload-status').textContent = '';
+}
+
+async function uploadToImgBB(file) {
+  const b64 = await toBase64(file);
+  const fd = new FormData();
+  fd.append('image', b64.split(',')[1]); // strip data:...;base64,
+  const res  = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data?.data?.url) return data.data.url;
+  throw new Error(data?.error?.message || 'ImgBB upload failed');
+}
+
+// ─── SIZES GRID BUILDER ──────────────────────────────────────────────
+function buildSizesGrid(containerId, values = {}) {
+  const grid = document.getElementById(containerId);
+  grid.innerHTML = '';
+  SIZES.forEach(size => {
+    const val = values[size] ?? 0;
+    grid.innerHTML += `
+      <div class="size-item">
+        <div class="size-label">${size}</div>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="changeQty('${containerId}','${size}',1)">+</button>
+          <input class="qty-display" type="number" id="qty-${containerId}-${size}"
+            value="${val}" min="0" max="999"
+            oninput="clampQty(this)" onblur="if(this.value==='')this.value=0">
+          <button class="qty-btn" onclick="changeQty('${containerId}','${size}',-1)">−</button>
+        </div>
+      </div>`;
+  });
+}
+
+function changeQty(gridId, size, delta) {
+  const inp = document.getElementById(`qty-${gridId}-${size}`);
+  let v = parseInt(inp.value) || 0;
+  v = Math.max(0, Math.min(999, v + delta));
+  inp.value = v;
+}
+
+function clampQty(inp) {
+  let v = parseInt(inp.value);
+  if (isNaN(v) || v < 0) inp.value = 0;
+  else if (v > 999) inp.value = 999;
+}
+
+function getSizesFromGrid(gridId) {
+  const out = {};
+  SIZES.forEach(s => { out[s] = parseInt(document.getElementById(`qty-${gridId}-${s}`)?.value) || 0; });
+  return out;
+}
+
+// ─── SAVE NEW ITEM ───────────────────────────────────────────────────
+async function saveItem() {
+  const name = document.getElementById('item-name').value.trim();
+  if (!name) { toast('Enter an item name', 'error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'SAVING…';
+
+  try {
+    let photoUrl = null;
+    if (currentPhotoFile) {
+      document.getElementById('upload-status').textContent = '⏳ Uploading photo…';
+      try {
+        photoUrl = await uploadToImgBB(currentPhotoFile);
+        document.getElementById('upload-status').textContent = '✅ Photo uploaded';
+      } catch(e) {
+        // Store as base64 locally if Cloudinary fails
+        photoUrl = await toBase64(currentPhotoFile);
+        document.getElementById('upload-status').textContent = '⚠️ Saved locally (no internet)';
+      }
+    }
+
+    const item = {
+      id:    Date.now().toString(),
+      name,
+      photo: photoUrl,
+      sizes: getSizesFromGrid('add-sizes-grid'),
+      updatedAt: new Date().toLocaleDateString('en-IN')
+    };
+
+    stock.unshift(item);
+    saveStock();
+    resetForm();
+    toast('Item saved!', 'success');
+    updateCount();
+    switchTab('stock');
+
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'SAVE TO STOCK';
+}
+
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function resetForm() {
+  document.getElementById('item-name').value = '';
+  removePhoto();
+  buildSizesGrid('add-sizes-grid', SIZES.reduce((a,s) => ({...a,[s]:0}), {}));
+  document.getElementById('upload-status').textContent = '';
+}
+
+// ─── STOCK LIST ──────────────────────────────────────────────────────
+function renderStock() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const list = document.getElementById('stock-list');
+  const filtered = stock.filter(it => it.name.toLowerCase().includes(q));
+
+  updateCount();
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <p>${q ? 'No items match your search' : 'No items yet. Add some!'}</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(item => `
+    <div class="stock-item" id="si-${item.id}">
+      <div class="stock-item-header" onclick="toggleItem('${item.id}')">
+        ${item.photo
+          ? `<img class="stock-thumb" src="${item.photo}" alt="">`
+          : `<div class="stock-thumb-placeholder">👕</div>`}
+        <div class="stock-meta">
+          <div class="stock-name">${escHtml(item.name)}</div>
+          <div class="stock-summary">${sizeSummary(item.sizes)} · ${item.updatedAt || ''}</div>
+        </div>
+        <div class="stock-chevron">⌄</div>
+      </div>
+      <div class="stock-sizes">
+        <div class="sizes-edit-grid" id="edit-grid-${item.id}"></div>
+        <div class="stock-actions">
+          <button class="update-btn" onclick="updateItem('${item.id}')">UPDATE STOCK</button>
+          <button class="delete-btn" onclick="deleteItem('${item.id}')">Delete</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // Build edit grids after DOM insert
+  filtered.forEach(item => buildSizesGrid(`edit-grid-${item.id}`, item.sizes));
+}
+
+function toggleItem(id) {
+  const el = document.getElementById(`si-${id}`);
+  el.classList.toggle('open');
+}
+
+function updateItem(id) {
+  const item = stock.find(it => it.id === id);
+  if (!item) return;
+  item.sizes = getSizesFromGrid(`edit-grid-${id}`);
+  item.updatedAt = new Date().toLocaleDateString('en-IN');
+  saveStock();
+  toast('Stock updated!', 'success');
+  renderStock();
+  // Re-open
+  setTimeout(() => {
+    const el = document.getElementById(`si-${id}`);
+    if (el) el.classList.add('open');
+  }, 50);
+}
+
+function deleteItem(id) {
+  if (!confirm('Delete this item from stock?')) return;
+  stock = stock.filter(it => it.id !== id);
+  saveStock();
+  renderStock();
+  toast('Item deleted');
+}
+
+function sizeSummary(sizes) {
+  return SIZES.map(s => `${s}:${sizes[s]??0}`).join(' · ');
+}
+
+function saveStock() { localStorage.setItem(STORAGE_KEY, JSON.stringify(stock)); }
+function updateCount() {
+  document.getElementById('item-count').textContent = `${stock.length} item${stock.length!==1?'s':''}`;
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── TOAST ───────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2500);
+}
+
+// ─── START ───────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
