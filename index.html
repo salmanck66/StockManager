@@ -3,418 +3,232 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JCClub · Stock Manager</title>
+<title>JCClub · Stock</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
+:root {
+  --black:#0a0a0a;--white:#fff;--g1:#f5f5f5;--g2:#e8e8e8;--g3:#999;--g4:#555;
+  --danger:#e53e3e;--success:#22c55e;--r:10px;--sh:0 2px 16px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Jost',sans-serif;background:var(--g1);color:var(--black);min-height:100vh}
 
-  :root {
-    --black: #0a0a0a;
-    --white: #ffffff;
-    --grey-1: #f5f5f5;
-    --grey-2: #e8e8e8;
-    --grey-3: #999;
-    --grey-4: #555;
-    --accent: #111;
-    --danger: #e53e3e;
-    --success: #22c55e;
-    --radius: 10px;
-    --shadow: 0 2px 16px rgba(0,0,0,0.08);
-  }
+/* PIN SCREEN */
+#pin-screen{position:fixed;inset:0;background:var(--black);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:999;gap:20px;padding:32px}
+.logo-big{font-size:30px;font-weight:700;color:var(--white);letter-spacing:4px}
+.sub-text{font-size:12px;color:var(--g3);letter-spacing:2px;text-transform:uppercase}
+#pin-input{width:100%;max-width:300px;padding:14px 20px;font-family:'Jost',sans-serif;
+  font-size:18px;letter-spacing:4px;text-align:center;background:#1a1a1a;
+  border:1.5px solid #333;border-radius:var(--r);color:var(--white);outline:none;transition:border-color .2s}
+#pin-input:focus{border-color:#666}
+#pin-input.error{border-color:var(--danger);animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+#pin-error{color:#ff6b6b;font-size:12px;height:16px;text-align:center}
+.pin-btn-row{width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px}
+.pin-btn-main{width:100%;padding:14px;background:var(--white);color:var(--black);
+  border:none;border-radius:var(--r);font-family:'Jost',sans-serif;
+  font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:opacity .2s}
+.pin-btn-main:hover{opacity:.85}
+.pin-btn-ghost{width:100%;padding:12px;background:none;color:var(--g3);
+  border:1.5px solid #333;border-radius:var(--r);font-family:'Jost',sans-serif;
+  font-size:13px;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.pin-btn-ghost:hover{border-color:#666;color:var(--white)}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* HEADER */
+header{background:var(--black);padding:14px 20px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:10}
+.h-logo{font-size:18px;font-weight:700;color:var(--white);letter-spacing:3px}
+.h-role{font-size:11px;padding:4px 10px;border-radius:20px;letter-spacing:1px;font-weight:600}
+.h-role.admin{background:#22c55e;color:#fff}
+.h-role.reseller{background:#3b82f6;color:#fff}
+#lock-btn{background:none;border:1px solid #333;border-radius:6px;color:var(--g3);
+  font-family:'Jost',sans-serif;font-size:11px;letter-spacing:1px;padding:5px 10px;cursor:pointer}
 
-  body {
-    font-family: 'Jost', sans-serif;
-    background: var(--grey-1);
-    color: var(--black);
-    min-height: 100vh;
-  }
+/* TABS */
+.tabs{display:flex;background:var(--white);border-bottom:1px solid var(--g2);
+  position:sticky;top:52px;z-index:9}
+.tab-btn{flex:1;padding:12px 8px;font-family:'Jost',sans-serif;font-size:13px;
+  font-weight:500;letter-spacing:.5px;background:none;border:none;cursor:pointer;
+  color:var(--g3);border-bottom:2px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--black);border-bottom-color:var(--black)}
 
-  /* ─── PIN SCREEN ─── */
-  #pin-screen {
-    position: fixed; inset: 0;
-    background: var(--black);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    z-index: 999;
-    gap: 24px;
-    padding: 32px;
-  }
-  #pin-screen .logo {
-    font-size: 28px; font-weight: 700; color: var(--white);
-    letter-spacing: 3px;
-  }
-  #pin-screen .sub {
-    font-size: 13px; color: var(--grey-3); letter-spacing: 1px;
-  }
-  #pin-input {
-    width: 100%; max-width: 300px;
-    padding: 14px 20px;
-    font-family: 'Jost', sans-serif;
-    font-size: 18px; letter-spacing: 4px;
-    text-align: center;
-    background: #1a1a1a;
-    border: 1.5px solid #333;
-    border-radius: var(--radius);
-    color: var(--white);
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  #pin-input:focus { border-color: #555; }
-  #pin-input.error { border-color: var(--danger); animation: shake 0.3s; }
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    25% { transform: translateX(-8px); }
-    75% { transform: translateX(8px); }
-  }
-  #pin-btn {
-    width: 100%; max-width: 300px;
-    padding: 14px;
-    background: var(--white); color: var(--black);
-    border: none; border-radius: var(--radius);
-    font-family: 'Jost', sans-serif;
-    font-size: 15px; font-weight: 600;
-    letter-spacing: 1px; cursor: pointer;
-    transition: opacity 0.2s;
-  }
-  #pin-btn:hover { opacity: 0.85; }
-  #pin-error { color: #ff6b6b; font-size: 13px; height: 18px; }
+/* SECTIONS */
+.section{padding:18px}
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);padding:18px;margin-bottom:14px}
+.card-title{font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--g3);
+  text-transform:uppercase;margin-bottom:14px}
 
-  /* ─── APP ─── */
-  #app { display: none; padding-bottom: 80px; }
+/* PHOTO */
+.photo-area{width:100%;aspect-ratio:4/3;border:2px dashed var(--g2);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;overflow:hidden;position:relative;background:var(--g1);transition:border-color .2s;
+  margin-bottom:10px;cursor:pointer}
+.photo-area:hover{border-color:#aaa}
+.photo-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.photo-btns{display:flex;gap:8px;margin-bottom:14px}
+.photo-btn{flex:1;padding:9px;border:1.5px solid var(--g2);border-radius:8px;
+  background:var(--white);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:5px;transition:border-color .2s}
+.photo-btn:hover{border-color:#999}
 
-  header {
-    background: var(--black);
-    padding: 16px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 10;
-  }
-  header .logo { font-size: 20px; font-weight: 700; color: var(--white); letter-spacing: 2px; }
-  header .stock-count { font-size: 12px; color: var(--grey-3); letter-spacing: 1px; }
-  #logout-btn {
-    background: none; border: 1px solid #333; border-radius: 6px;
-    color: var(--grey-3); font-family: 'Jost', sans-serif;
-    font-size: 11px; letter-spacing: 1px; padding: 6px 10px;
-    cursor: pointer;
-  }
+/* INPUTS */
+.text-input{width:100%;padding:12px 14px;font-family:'Jost',sans-serif;font-size:15px;
+  border:1.5px solid var(--g2);border-radius:8px;outline:none;background:var(--white);
+  color:var(--black);transition:border-color .2s}
+.text-input:focus{border-color:var(--black)}
+.field-label{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--g4);
+  text-transform:uppercase;margin-bottom:8px;display:block}
 
-  /* ─── TABS ─── */
-  .tabs {
-    display: flex; background: var(--white);
-    border-bottom: 1px solid var(--grey-2);
-    position: sticky; top: 56px; z-index: 9;
-  }
-  .tab-btn {
-    flex: 1; padding: 13px 8px;
-    font-family: 'Jost', sans-serif;
-    font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
-    background: none; border: none; cursor: pointer;
-    color: var(--grey-3); border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-  }
-  .tab-btn.active { color: var(--black); border-bottom-color: var(--black); }
+/* SIZES */
+.sizes-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.size-item{display:flex;flex-direction:column;align-items:center;gap:5px}
+.size-label{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--g4);text-transform:uppercase}
+.qty-control{display:flex;flex-direction:column;align-items:center;gap:3px}
+.qty-btn{width:30px;height:26px;border:1.5px solid var(--g2);border-radius:6px;
+  background:var(--white);font-size:15px;font-weight:500;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
+.qty-btn:active{background:var(--g1);transform:scale(.95)}
+.qty-display{width:34px;height:34px;border:1.5px solid var(--g2);border-radius:7px;
+  font-family:'Jost',sans-serif;font-size:15px;font-weight:600;text-align:center;
+  outline:none;color:var(--black);background:var(--white);transition:border-color .2s}
+.qty-display:focus{border-color:var(--black)}
 
-  /* ─── ADD ITEM FORM ─── */
-  .section { padding: 20px; }
+/* BUTTONS */
+.save-btn{width:100%;padding:14px;background:var(--black);color:var(--white);
+  border:none;border-radius:var(--r);font-family:'Jost',sans-serif;
+  font-size:14px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:opacity .2s;margin-top:4px}
+.save-btn:hover{opacity:.85}
+.save-btn:disabled{opacity:.4;cursor:not-allowed}
 
-  .card {
-    background: var(--white);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px;
-    margin-bottom: 16px;
-  }
+/* STOCK LIST */
+.search-input{width:100%;padding:11px 14px;font-family:'Jost',sans-serif;font-size:14px;
+  border:1.5px solid var(--g2);border-radius:8px;outline:none;background:var(--white);
+  margin-bottom:14px;transition:border-color .2s}
+.search-input:focus{border-color:#aaa}
+.stock-item{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);
+  margin-bottom:12px;overflow:hidden}
+.stock-item-header{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+.stock-thumb{width:54px;height:54px;border-radius:8px;object-fit:cover;
+  background:var(--g1);flex-shrink:0}
+.stock-thumb-ph{width:54px;height:54px;border-radius:8px;background:var(--g1);
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stock-meta{flex:1;min-width:0}
+.stock-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;margin-bottom:3px}
+.stock-summary{font-size:11px;color:var(--g3)}
+.stock-chevron{font-size:16px;color:var(--g3);transition:transform .2s}
+.stock-item.open .stock-chevron{transform:rotate(180deg)}
+.stock-sizes{display:none;padding:0 14px 14px;border-top:1px solid var(--g1);padding-top:12px}
+.stock-item.open .stock-sizes{display:block}
+.stock-actions{display:flex;gap:8px;margin-top:12px}
+.update-btn{flex:1;padding:10px;background:var(--black);color:var(--white);
+  border:none;border-radius:8px;font-family:'Jost',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.update-btn:hover{opacity:.8}
+.delete-btn{padding:10px 14px;background:none;color:var(--danger);
+  border:1.5px solid #fecaca;border-radius:8px;font-family:'Jost',sans-serif;
+  font-size:13px;cursor:pointer;transition:all .2s}
+.delete-btn:hover{background:#fff5f5}
 
-  .card-title {
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 1.5px; color: var(--grey-3);
-    text-transform: uppercase; margin-bottom: 16px;
-  }
+.empty-state{text-align:center;padding:60px 20px;color:var(--g3)}
+.empty-state .ei{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
 
-  /* Photo upload */
-  .photo-area {
-    width: 100%; aspect-ratio: 4/3;
-    border: 2px dashed var(--grey-2);
-    border-radius: var(--radius);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 8px; cursor: pointer;
-    overflow: hidden; position: relative;
-    background: var(--grey-1);
-    transition: border-color 0.2s;
-    margin-bottom: 12px;
-  }
-  .photo-area:hover { border-color: #aaa; }
-  .photo-area img {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%; object-fit: cover;
-  }
-  .photo-area .ph-icon { font-size: 32px; }
-  .photo-area .ph-text { font-size: 13px; color: var(--grey-3); }
+/* STATUS */
+#upload-status{font-size:12px;color:var(--g3);text-align:center;margin-top:4px;min-height:16px}
+.db-status{font-size:11px;color:var(--g3);text-align:center;padding:6px;
+  background:var(--g1);border-radius:6px;margin-bottom:12px}
+.db-status.ok{color:#16a34a}
+.db-status.err{color:var(--danger)}
 
-  .photo-btns { display: flex; gap: 10px; margin-bottom: 16px; }
-  .photo-btn {
-    flex: 1; padding: 10px;
-    border: 1.5px solid var(--grey-2);
-    border-radius: 8px; background: var(--white);
-    font-family: 'Jost', sans-serif;
-    font-size: 13px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: border-color 0.2s;
-  }
-  .photo-btn:hover { border-color: #999; }
+/* LOADING */
+#loading-screen{position:fixed;inset:0;background:var(--black);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:998;gap:16px;transition:opacity .3s}
+#loading-screen.hide{opacity:0;pointer-events:none}
+.spinner-big{width:36px;height:36px;border:3px solid #333;border-top-color:var(--white);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--g3);letter-spacing:1px}
 
-  /* Item name input */
-  .field-label {
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 1px; color: var(--grey-4);
-    text-transform: uppercase; margin-bottom: 8px;
-    display: block;
-  }
-  .text-input {
-    width: 100%;
-    padding: 12px 14px;
-    font-family: 'Jost', sans-serif;
-    font-size: 15px;
-    border: 1.5px solid var(--grey-2);
-    border-radius: 8px; outline: none;
-    background: var(--white);
-    color: var(--black);
-    transition: border-color 0.2s;
-  }
-  .text-input:focus { border-color: var(--black); }
+/* TOAST */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--black);color:var(--white);padding:11px 22px;border-radius:100px;
+  font-size:13px;font-weight:500;letter-spacing:.5px;opacity:0;transition:all .3s;
+  z-index:200;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{background:#16a34a}
+#toast.error{background:var(--danger)}
 
-  /* Size grid */
-  .sizes-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-  .size-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .size-label {
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 1px; color: var(--grey-4);
-    text-transform: uppercase;
-  }
-  .qty-control { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .qty-btn {
-    width: 32px; height: 28px;
-    border: 1.5px solid var(--grey-2);
-    border-radius: 6px; background: var(--white);
-    font-size: 16px; font-weight: 500;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s; user-select: none;
-    line-height: 1;
-  }
-  .qty-btn:active { background: var(--grey-1); transform: scale(0.95); }
-  .qty-display {
-    width: 36px; height: 36px;
-    border: 1.5px solid var(--grey-2);
-    border-radius: 8px;
-    font-family: 'Jost', sans-serif;
-    font-size: 16px; font-weight: 600;
-    text-align: center; outline: none;
-    color: var(--black); background: var(--white);
-    transition: border-color 0.2s;
-  }
-  .qty-display:focus { border-color: var(--black); }
-
-  /* Save button */
-  .save-btn {
-    width: 100%; padding: 15px;
-    background: var(--black); color: var(--white);
-    border: none; border-radius: var(--radius);
-    font-family: 'Jost', sans-serif;
-    font-size: 15px; font-weight: 600; letter-spacing: 1px;
-    cursor: pointer; transition: opacity 0.2s;
-    margin-top: 4px;
-  }
-  .save-btn:hover { opacity: 0.85; }
-  .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .save-btn.loading { opacity: 0.6; }
-
-  /* Upload status */
-  #upload-status {
-    font-size: 12px; color: var(--grey-3);
-    text-align: center; margin-top: 6px; min-height: 18px;
-  }
-
-  /* ─── STOCK LIST ─── */
-  .search-bar {
-    display: flex; gap: 10px; margin-bottom: 16px;
-  }
-  .search-input {
-    flex: 1; padding: 11px 14px;
-    font-family: 'Jost', sans-serif;
-    font-size: 14px;
-    border: 1.5px solid var(--grey-2);
-    border-radius: 8px; outline: none; background: var(--white);
-    transition: border-color 0.2s;
-  }
-  .search-input:focus { border-color: #aaa; }
-
-  .stock-item {
-    background: var(--white);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    margin-bottom: 14px;
-    overflow: hidden;
-  }
-  .stock-item-header {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px;
-    cursor: pointer;
-  }
-  .stock-thumb {
-    width: 56px; height: 56px;
-    border-radius: 8px; object-fit: cover;
-    background: var(--grey-1);
-    flex-shrink: 0;
-  }
-  .stock-thumb-placeholder {
-    width: 56px; height: 56px;
-    border-radius: 8px; background: var(--grey-1);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex-shrink: 0;
-  }
-  .stock-meta { flex: 1; min-width: 0; }
-  .stock-name {
-    font-size: 15px; font-weight: 600;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 4px;
-  }
-  .stock-summary { font-size: 12px; color: var(--grey-3); }
-  .stock-chevron { font-size: 18px; color: var(--grey-3); transition: transform 0.2s; }
-  .stock-item.open .stock-chevron { transform: rotate(180deg); }
-
-  .stock-sizes {
-    display: none; padding: 0 16px 16px;
-    border-top: 1px solid var(--grey-1);
-    padding-top: 14px;
-  }
-  .stock-item.open .stock-sizes { display: block; }
-
-  .sizes-edit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
-  
-  .stock-actions { display: flex; gap: 10px; }
-  .update-btn {
-    flex: 1; padding: 10px;
-    background: var(--black); color: var(--white);
-    border: none; border-radius: 8px;
-    font-family: 'Jost', sans-serif;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    transition: opacity 0.2s;
-  }
-  .update-btn:hover { opacity: 0.8; }
-  .delete-btn {
-    padding: 10px 16px;
-    background: none; color: var(--danger);
-    border: 1.5px solid #fecaca;
-    border-radius: 8px;
-    font-family: 'Jost', sans-serif;
-    font-size: 13px; cursor: pointer;
-    transition: all 0.2s;
-  }
-  .delete-btn:hover { background: #fff5f5; }
-
-  .empty-state {
-    text-align: center; padding: 60px 20px;
-    color: var(--grey-3);
-  }
-  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-state p { font-size: 14px; }
-
-  /* Toast */
-  #toast {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--black); color: var(--white);
-    padding: 12px 24px; border-radius: 100px;
-    font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
-    opacity: 0; transition: all 0.3s; z-index: 100;
-    white-space: nowrap;
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  #toast.success { background: #16a34a; }
-  #toast.error { background: var(--danger); }
-
-  /* Hidden inputs */
-  input[type="file"] { display: none; }
-
-  /* Loading overlay */
-  .loading-overlay {
-    position: absolute; inset: 0;
-    background: rgba(255,255,255,0.85);
-    display: none; align-items: center; justify-content: center;
-    border-radius: var(--radius);
-    font-size: 13px; color: var(--grey-4);
-  }
-  .loading-overlay.show { display: flex; }
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--grey-2);
-    border-top-color: var(--black);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+input[type="file"]{display:none}
 </style>
 </head>
 <body>
 
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="logo-big">JCCLUB</div>
+  <div class="spinner-big"></div>
+  <div class="loading-text">LOADING STOCK…</div>
+</div>
+
 <!-- PIN SCREEN -->
-<div id="pin-screen">
-  <div class="logo">JCCLUB</div>
-  <div class="sub">STOCK MANAGER</div>
-  <input type="password" id="pin-input" placeholder="Enter PIN" maxlength="20"
+<div id="pin-screen" style="display:none">
+  <div class="logo-big">JCCLUB</div>
+  <div class="sub-text">Stock Manager</div>
+  <input type="password" id="pin-input" placeholder="Admin PIN" maxlength="30"
     onkeydown="if(event.key==='Enter') checkPin()" autocomplete="off">
   <div id="pin-error"></div>
-  <button id="pin-btn" onclick="checkPin()">UNLOCK</button>
+  <div class="pin-btn-row">
+    <button class="pin-btn-main" onclick="checkPin()">UNLOCK AS ADMIN</button>
+    <button class="pin-btn-ghost" onclick="enterAsReseller()">👀 VIEW STOCK ONLY</button>
+  </div>
 </div>
 
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none">
   <header>
-    <div class="logo">JCCLUB</div>
-    <div class="stock-count" id="item-count">0 items</div>
-    <button id="logout-btn" onclick="logout()">LOCK</button>
+    <div class="h-logo">JCCLUB</div>
+    <div class="h-role" id="role-badge">—</div>
+    <button id="lock-btn" onclick="lockApp()">LOCK</button>
   </header>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('add')">＋ Add Item</button>
-    <button class="tab-btn" onclick="switchTab('stock')">📦 Stock</button>
+  <div class="tabs" id="tab-bar">
+    <button class="tab-btn active" id="tab-stock-btn" onclick="switchTab('stock')">📦 Stock</button>
+    <button class="tab-btn" id="tab-add-btn" onclick="switchTab('add')" style="display:none">＋ Add Item</button>
   </div>
 
-  <!-- ADD TAB -->
-  <div id="tab-add" class="section">
+  <!-- STOCK TAB -->
+  <div id="tab-stock" class="section">
+    <div class="db-status" id="db-status">Connecting…</div>
+    <input type="text" class="search-input" id="search-input" placeholder="Search jerseys…" oninput="renderStock()">
+    <div id="stock-list"></div>
+  </div>
 
-    <!-- Photo -->
+  <!-- ADD TAB (admin only) -->
+  <div id="tab-add" class="section" style="display:none">
     <div class="card">
       <div class="card-title">Product Photo</div>
       <div class="photo-area" id="photo-area" onclick="document.getElementById('file-gallery').click()">
-        <span class="ph-icon">🖼️</span>
-        <span class="ph-text">Tap to choose photo</span>
+        <span style="font-size:32px">🖼️</span>
+        <span style="font-size:13px;color:var(--g3)">Tap to choose photo</span>
       </div>
       <div class="photo-btns">
-        <button class="photo-btn" onclick="document.getElementById('file-camera').click()">
-          📷 Camera
-        </button>
-        <button class="photo-btn" onclick="document.getElementById('file-gallery').click()">
-          🖼️ Gallery
-        </button>
-        <button class="photo-btn" id="remove-photo-btn" style="display:none;color:#e53e3e;border-color:#fecaca" onclick="removePhoto()">
-          🗑 Remove
-        </button>
+        <button class="photo-btn" onclick="document.getElementById('file-camera').click()">📷 Camera</button>
+        <button class="photo-btn" onclick="document.getElementById('file-gallery').click()">🖼️ Gallery</button>
+        <button class="photo-btn" id="rm-photo" style="display:none;color:var(--danger);border-color:#fecaca" onclick="removePhoto()">🗑 Remove</button>
       </div>
       <input type="file" id="file-camera" accept="image/*" capture="environment" onchange="handlePhoto(this)">
       <input type="file" id="file-gallery" accept="image/*" onchange="handlePhoto(this)">
       <div id="upload-status"></div>
     </div>
 
-    <!-- Item Name -->
     <div class="card">
-      <div class="card-title">Quality</div>
+      <div class="card-title">Item Name</div>
       <input type="text" class="text-input" id="item-name" placeholder="e.g. Brazil Home Kit 2024">
     </div>
 
-    <!-- Sizes -->
     <div class="card">
       <div class="card-title">Stock by Size</div>
       <div class="sizes-grid" id="add-sizes-grid"></div>
@@ -422,141 +236,237 @@
 
     <button class="save-btn" id="save-btn" onclick="saveItem()">SAVE TO STOCK</button>
   </div>
-
-  <!-- STOCK TAB -->
-  <div id="tab-stock" class="section" style="display:none">
-    <div class="search-bar">
-      <input type="text" class="search-input" id="search-input" placeholder="Search items…" oninput="renderStock()">
-    </div>
-    <div id="stock-list"></div>
-  </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-// ─── CONFIG ─────────────────────────────────────────────────────────
-const CORRECT_PIN = 'jcclub916';
-const STORAGE_KEY = 'jcclub_stock_v1';
-const AUTH_KEY    = 'jcclub_auth';
-const SIZES       = ['S','M','L','XL','XXL'];
+// ═══════════════════════════════════════════════════════
+//  CONFIG — change these two values only
+// ═══════════════════════════════════════════════════════
+const ADMIN_PIN    = 'jcclub916';
+const IMGBB_KEY    = 'eefc443b08b231582bb6f78e52202294';
 
-// ImgBB — paste your free API key here
-// Get it from: https://api.imgbb.com/ (free account → API)
-const IMGBB_KEY = 'eefc443b08b231582bb6f78e52202294';
+// JSONBin.io — FREE shared database
+// HOW TO SET UP (one time, 2 minutes):
+//  1. Go to jsonbin.io → Sign up free
+//  2. Go to API Keys → Create Master Key → copy it
+//  3. Go to Bins → Create Bin → paste {"stock":[]} → Save
+//  4. Copy the Bin ID (looks like 64abc123...)
+//  5. Paste both below:
+const JSONBIN_KEY    = '$2a$10$PASTE_YOUR_MASTER_KEY_HERE';
+const JSONBIN_BIN_ID = 'PASTE_YOUR_BIN_ID_HERE';
+// ═══════════════════════════════════════════════════════
 
-// ─── INIT ───────────────────────────────────────────────────────────
-let currentPhotoUrl = null;
-let currentPhotoFile = null;
-let editingId = null;
-let stock = [];
+const SIZES     = ['S','M','L','XL','XXL'];
+const ROLE_KEY  = 'jcclub_role'; // 'admin' | 'reseller'
 
-function init() {
-  stock = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  const auth = localStorage.getItem(AUTH_KEY);
-  if (auth === 'true') {
-    showApp();
+let stock        = [];
+let currentRole  = null;
+let currentPhoto = null; // { file, dataUrl }
+
+// ── INIT ────────────────────────────────────────────────
+async function init() {
+  const saved = localStorage.getItem(ROLE_KEY);
+  if (saved === 'admin' || saved === 'reseller') {
+    currentRole = saved;
+    await bootApp();
+  } else {
+    hide('loading-screen');
+    show('pin-screen');
   }
-  buildSizesGrid('add-sizes-grid', SIZES.reduce((a,s) => ({...a,[s]:0}), {}));
-  updateCount();
 }
 
-// ─── PIN ────────────────────────────────────────────────────────────
+// ── AUTH ─────────────────────────────────────────────────
 function checkPin() {
   const val = document.getElementById('pin-input').value.trim();
-  const inp = document.getElementById('pin-input');
-  const err = document.getElementById('pin-error');
-  if (val === CORRECT_PIN) {
-    localStorage.setItem(AUTH_KEY, 'true');
-    showApp();
+  if (val === ADMIN_PIN) {
+    localStorage.setItem(ROLE_KEY, 'admin');
+    currentRole = 'admin';
+    document.getElementById('pin-input').value = '';
+    bootApp();
   } else {
-    err.textContent = 'Incorrect PIN. Try again.';
-    inp.classList.add('error');
-    inp.value = '';
-    setTimeout(() => { inp.classList.remove('error'); err.textContent = ''; }, 1500);
+    shake();
+    document.getElementById('pin-error').textContent = 'Wrong PIN';
+    document.getElementById('pin-input').value = '';
+    setTimeout(() => document.getElementById('pin-error').textContent = '', 1500);
   }
 }
 
-function showApp() {
-  document.getElementById('pin-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  renderStock();
+function enterAsReseller() {
+  localStorage.setItem(ROLE_KEY, 'reseller');
+  currentRole = 'reseller';
+  bootApp();
 }
 
-function logout() {
-  localStorage.removeItem(AUTH_KEY);
+function lockApp() {
+  localStorage.removeItem(ROLE_KEY);
   location.reload();
 }
 
-// ─── TABS ────────────────────────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='add')||(i===1&&tab==='stock')));
-  document.getElementById('tab-add').style.display   = tab === 'add'   ? '' : 'none';
-  document.getElementById('tab-stock').style.display = tab === 'stock' ? '' : 'none';
-  if (tab === 'stock') renderStock();
+function shake() {
+  const inp = document.getElementById('pin-input');
+  inp.classList.add('error');
+  setTimeout(() => inp.classList.remove('error'), 400);
 }
 
-// ─── PHOTO ──────────────────────────────────────────────────────────
+// ── BOOT ────────────────────────────────────────────────
+async function bootApp() {
+  show('loading-screen');
+  hide('pin-screen');
+
+  // Role UI
+  const badge = document.getElementById('role-badge');
+  if (currentRole === 'admin') {
+    badge.textContent = 'ADMIN';
+    badge.className = 'h-role admin';
+    document.getElementById('tab-add-btn').style.display = '';
+  } else {
+    badge.textContent = 'RESELLER';
+    badge.className = 'h-role reseller';
+  }
+
+  await fetchStock();
+
+  document.getElementById('loading-screen').classList.add('hide');
+  setTimeout(() => hide('loading-screen'), 350);
+  show('app');
+  buildSizesGrid('add-sizes-grid', {});
+  renderStock();
+}
+
+// ── JSONBIN DB ───────────────────────────────────────────
+async function fetchStock() {
+  const status = document.getElementById('db-status');
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+    });
+    if (!res.ok) throw new Error('DB error ' + res.status);
+    const data = await res.json();
+    stock = data.stock || [];
+    status.textContent = `✅ ${stock.length} items loaded`;
+    status.className = 'db-status ok';
+  } catch(e) {
+    status.textContent = '⚠️ Could not reach database — check JSONBin config';
+    status.className = 'db-status err';
+    stock = [];
+  }
+}
+
+async function pushStock() {
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': JSONBIN_KEY
+    },
+    body: JSON.stringify({ stock })
+  });
+  if (!res.ok) throw new Error('Save failed: ' + res.status);
+}
+
+// ── PHOTO ────────────────────────────────────────────────
 function handlePhoto(input) {
   const file = input.files[0];
   if (!file) return;
-  currentPhotoFile = file;
-  currentPhotoUrl  = null;
   const reader = new FileReader();
   reader.onload = e => {
+    currentPhoto = { file, dataUrl: e.target.result };
     const area = document.getElementById('photo-area');
     area.innerHTML = `<img src="${e.target.result}" alt="preview">`;
-    document.getElementById('remove-photo-btn').style.display = '';
-    document.getElementById('upload-status').textContent = 'Photo ready — will upload on save';
+    document.getElementById('rm-photo').style.display = '';
+    document.getElementById('upload-status').textContent = 'Photo ready — uploads on save';
   };
   reader.readAsDataURL(file);
   input.value = '';
 }
 
 function removePhoto() {
-  currentPhotoFile = null;
-  currentPhotoUrl  = null;
+  currentPhoto = null;
   const area = document.getElementById('photo-area');
-  area.innerHTML = `<span class="ph-icon">🖼️</span><span class="ph-text">Tap to choose photo</span>`;
-  document.getElementById('remove-photo-btn').style.display = 'none';
+  area.innerHTML = `<span style="font-size:32px">🖼️</span><span style="font-size:13px;color:var(--g3)">Tap to choose photo</span>`;
+  document.getElementById('rm-photo').style.display = 'none';
   document.getElementById('upload-status').textContent = '';
 }
 
-async function uploadToImgBB(file) {
-  const b64 = await toBase64(file);
+async function uploadImgBB(file) {
+  const b64 = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
   const fd = new FormData();
-  fd.append('image', b64.split(',')[1]); // strip data:...;base64,
-  const res  = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method: 'POST', body: fd });
+  fd.append('image', b64);
+  const res  = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
   const data = await res.json();
   if (data?.data?.url) return data.data.url;
-  throw new Error(data?.error?.message || 'ImgBB upload failed');
+  throw new Error(data?.error?.message || 'ImgBB failed');
 }
 
-// ─── SIZES GRID BUILDER ──────────────────────────────────────────────
-function buildSizesGrid(containerId, values = {}) {
-  const grid = document.getElementById(containerId);
-  grid.innerHTML = '';
-  SIZES.forEach(size => {
-    const val = values[size] ?? 0;
-    grid.innerHTML += `
-      <div class="size-item">
-        <div class="size-label">${size}</div>
-        <div class="qty-control">
-          <button class="qty-btn" onclick="changeQty('${containerId}','${size}',1)">+</button>
-          <input class="qty-display" type="number" id="qty-${containerId}-${size}"
-            value="${val}" min="0" max="999"
-            oninput="clampQty(this)" onblur="if(this.value==='')this.value=0">
-          <button class="qty-btn" onclick="changeQty('${containerId}','${size}',-1)">−</button>
-        </div>
-      </div>`;
-  });
+// ── SAVE NEW ITEM ────────────────────────────────────────
+async function saveItem() {
+  if (currentRole !== 'admin') return;
+  const name = document.getElementById('item-name').value.trim();
+  if (!name) { toast('Enter an item name', 'error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'SAVING…';
+
+  try {
+    let photoUrl = null;
+    if (currentPhoto) {
+      document.getElementById('upload-status').textContent = '⏳ Uploading photo…';
+      photoUrl = await uploadImgBB(currentPhoto.file);
+      document.getElementById('upload-status').textContent = '✅ Photo uploaded';
+    }
+
+    const item = {
+      id: Date.now().toString(),
+      name,
+      photo: photoUrl,
+      sizes: getSizesFromGrid('add-sizes-grid'),
+      updatedAt: new Date().toLocaleDateString('en-IN')
+    };
+
+    stock.unshift(item);
+    await pushStock();
+    resetForm();
+    toast('Item saved!', 'success');
+    switchTab('stock');
+    renderStock();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+    stock.shift(); // rollback
+  }
+
+  btn.disabled = false; btn.textContent = 'SAVE TO STOCK';
+}
+
+// ── SIZES GRID ───────────────────────────────────────────
+function buildSizesGrid(id, values) {
+  const grid = document.getElementById(id);
+  if (!grid) return;
+  const isReadonly = currentRole === 'reseller';
+  grid.innerHTML = SIZES.map(s => `
+    <div class="size-item">
+      <div class="size-label">${s}</div>
+      <div class="qty-control">
+        ${!isReadonly ? `<button class="qty-btn" onclick="changeQty('${id}','${s}',1)">+</button>` : ''}
+        <input class="qty-display" id="qty-${id}-${s}" type="number"
+          value="${values[s] ?? 0}" min="0" max="999"
+          ${isReadonly ? 'readonly style="border-color:var(--g2);cursor:default;font-size:14px"' : ''}
+          oninput="clampQty(this)" onblur="if(this.value==='')this.value=0">
+        ${!isReadonly ? `<button class="qty-btn" onclick="changeQty('${id}','${s}',-1)">−</button>` : ''}
+      </div>
+    </div>`).join('');
 }
 
 function changeQty(gridId, size, delta) {
   const inp = document.getElementById(`qty-${gridId}-${size}`);
   let v = parseInt(inp.value) || 0;
-  v = Math.max(0, Math.min(999, v + delta));
-  inp.value = v;
+  inp.value = Math.max(0, Math.min(999, v + delta));
 }
 
 function clampQty(inp) {
@@ -571,81 +481,22 @@ function getSizesFromGrid(gridId) {
   return out;
 }
 
-// ─── SAVE NEW ITEM ───────────────────────────────────────────────────
-async function saveItem() {
-  const name = document.getElementById('item-name').value.trim();
-  if (!name) { toast('Enter an item name', 'error'); return; }
-
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  btn.textContent = 'SAVING…';
-
-  try {
-    let photoUrl = null;
-    if (currentPhotoFile) {
-      document.getElementById('upload-status').textContent = '⏳ Uploading photo…';
-      try {
-        photoUrl = await uploadToImgBB(currentPhotoFile);
-        document.getElementById('upload-status').textContent = '✅ Photo uploaded';
-      } catch(e) {
-        // Store as base64 locally if Cloudinary fails
-        photoUrl = await toBase64(currentPhotoFile);
-        document.getElementById('upload-status').textContent = '⚠️ Saved locally (no internet)';
-      }
-    }
-
-    const item = {
-      id:    Date.now().toString(),
-      name,
-      photo: photoUrl,
-      sizes: getSizesFromGrid('add-sizes-grid'),
-      updatedAt: new Date().toLocaleDateString('en-IN')
-    };
-
-    stock.unshift(item);
-    saveStock();
-    resetForm();
-    toast('Item saved!', 'success');
-    updateCount();
-    switchTab('stock');
-
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'SAVE TO STOCK';
-}
-
-function toBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
 function resetForm() {
   document.getElementById('item-name').value = '';
   removePhoto();
-  buildSizesGrid('add-sizes-grid', SIZES.reduce((a,s) => ({...a,[s]:0}), {}));
+  buildSizesGrid('add-sizes-grid', {});
   document.getElementById('upload-status').textContent = '';
 }
 
-// ─── STOCK LIST ──────────────────────────────────────────────────────
+// ── STOCK LIST ────────────────────────────────────────────
 function renderStock() {
   const q = (document.getElementById('search-input')?.value || '').toLowerCase();
   const list = document.getElementById('stock-list');
   const filtered = stock.filter(it => it.name.toLowerCase().includes(q));
 
-  updateCount();
-
   if (!filtered.length) {
-    list.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">📦</div>
-      <p>${q ? 'No items match your search' : 'No items yet. Add some!'}</p>
-    </div>`;
+    list.innerHTML = `<div class="empty-state"><div class="ei">📦</div>
+      <p>${q ? 'No items match your search' : 'No items yet.'}</p></div>`;
     return;
   }
 
@@ -654,75 +505,88 @@ function renderStock() {
       <div class="stock-item-header" onclick="toggleItem('${item.id}')">
         ${item.photo
           ? `<img class="stock-thumb" src="${item.photo}" alt="">`
-          : `<div class="stock-thumb-placeholder">👕</div>`}
+          : `<div class="stock-thumb-ph">👕</div>`}
         <div class="stock-meta">
-          <div class="stock-name">${escHtml(item.name)}</div>
-          <div class="stock-summary">${sizeSummary(item.sizes)} · ${item.updatedAt || ''}</div>
+          <div class="stock-name">${esc(item.name)}</div>
+          <div class="stock-summary">${sizeSummary(item.sizes)} · ${item.updatedAt||''}</div>
         </div>
         <div class="stock-chevron">⌄</div>
       </div>
       <div class="stock-sizes">
-        <div class="sizes-edit-grid" id="edit-grid-${item.id}"></div>
+        <div class="sizes-grid" id="eg-${item.id}"></div>
+        ${currentRole === 'admin' ? `
         <div class="stock-actions">
           <button class="update-btn" onclick="updateItem('${item.id}')">UPDATE STOCK</button>
           <button class="delete-btn" onclick="deleteItem('${item.id}')">Delete</button>
-        </div>
+        </div>` : ''}
       </div>
     </div>`).join('');
 
-  // Build edit grids after DOM insert
-  filtered.forEach(item => buildSizesGrid(`edit-grid-${item.id}`, item.sizes));
+  filtered.forEach(item => buildSizesGrid(`eg-${item.id}`, item.sizes));
 }
 
 function toggleItem(id) {
-  const el = document.getElementById(`si-${id}`);
-  el.classList.toggle('open');
+  document.getElementById(`si-${id}`)?.classList.toggle('open');
 }
 
-function updateItem(id) {
+async function updateItem(id) {
+  if (currentRole !== 'admin') return;
   const item = stock.find(it => it.id === id);
   if (!item) return;
-  item.sizes = getSizesFromGrid(`edit-grid-${id}`);
-  item.updatedAt = new Date().toLocaleDateString('en-IN');
-  saveStock();
-  toast('Stock updated!', 'success');
-  renderStock();
-  // Re-open
-  setTimeout(() => {
-    const el = document.getElementById(`si-${id}`);
-    if (el) el.classList.add('open');
-  }, 50);
+  const btn = document.querySelector(`#si-${id} .update-btn`);
+  if (btn) { btn.disabled = true; btn.textContent = 'SAVING…'; }
+  try {
+    item.sizes = getSizesFromGrid(`eg-${id}`);
+    item.updatedAt = new Date().toLocaleDateString('en-IN');
+    await pushStock();
+    toast('Stock updated!', 'success');
+    renderStock();
+    setTimeout(() => document.getElementById(`si-${id}`)?.classList.add('open'), 60);
+  } catch(e) {
+    toast('Save failed: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'UPDATE STOCK'; }
+  }
 }
 
-function deleteItem(id) {
-  if (!confirm('Delete this item from stock?')) return;
+async function deleteItem(id) {
+  if (!confirm('Delete this item?')) return;
   stock = stock.filter(it => it.id !== id);
-  saveStock();
-  renderStock();
-  toast('Item deleted');
+  try {
+    await pushStock();
+    toast('Deleted');
+    renderStock();
+  } catch(e) {
+    toast('Delete failed', 'error');
+    await fetchStock(); renderStock();
+  }
 }
 
 function sizeSummary(sizes) {
   return SIZES.map(s => `${s}:${sizes[s]??0}`).join(' · ');
 }
 
-function saveStock() { localStorage.setItem(STORAGE_KEY, JSON.stringify(stock)); }
-function updateCount() {
-  document.getElementById('item-count').textContent = `${stock.length} item${stock.length!==1?'s':''}`;
+// ── TABS ─────────────────────────────────────────────────
+function switchTab(tab) {
+  ['stock','add'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t===tab ? '' : 'none';
+    document.getElementById(`tab-${t}-btn`)?.classList.toggle('active', t===tab);
+  });
+  if (tab === 'stock') renderStock();
 }
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ─── TOAST ───────────────────────────────────────────────────────────
+// ── UTILS ────────────────────────────────────────────────
+function show(id) { document.getElementById(id).style.display = ''; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 let toastTimer;
 function toast(msg, type='') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'show ' + type;
+  t.textContent = msg; t.className = 'show ' + type;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = ''; }, 2500);
+  toastTimer = setTimeout(() => t.className = '', 2500);
 }
 
-// ─── START ───────────────────────────────────────────────────────────
 init();
 </script>
 </body>
