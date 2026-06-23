@@ -240,32 +240,42 @@ input[type="file"]{display:none}
 
 <div id="toast"></div>
 
-<script>
-// ═══════════════════════════════════════════════════════
-//  CONFIG — change these two values only
-// ═══════════════════════════════════════════════════════
-const ADMIN_PIN    = 'jcclub916';
-const IMGBB_KEY    = 'eefc443b08b231582bb6f78e52202294';
+<!-- Firebase SDK (module) -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import {
+  getDatabase, ref, get, set, onValue, remove
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
-// JSONBin.io — FREE shared database
-// HOW TO SET UP (one time, 2 minutes):
-//  1. Go to jsonbin.io → Sign up free
-//  2. Go to API Keys → Create Master Key → copy it
-//  3. Go to Bins → Create Bin → paste {"stock":[]} → Save
-//  4. Copy the Bin ID (looks like 64abc123...)
-//  5. Paste both below:
-const JSONBIN_KEY    = '$2a$10$PASTE_YOUR_MASTER_KEY_HERE';
-const JSONBIN_BIN_ID = 'PASTE_YOUR_BIN_ID_HERE';
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const ADMIN_PIN = 'jcclub916';
+const IMGBB_KEY = 'eefc443b08b231582bb6f78e52202294';
 
-const SIZES     = ['S','M','L','XL','XXL'];
-const ROLE_KEY  = 'jcclub_role'; // 'admin' | 'reseller'
+const firebaseConfig = {
+  apiKey: "AIzaSyC2SBFe8TsvS0W_lM4C0XOqLG4u5N9W-Y8",
+  authDomain: "dbspro-d50aa.firebaseapp.com",
+  databaseURL: "https://dbspro-d50aa-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "dbspro-d50aa",
+  storageBucket: "dbspro-d50aa.firebasestorage.app",
+  messagingSenderId: "733574579947",
+  appId: "1:733574579947:web:58b9d1f59886368910a0ae"
+};
+// ═══════════════════════════════════════════════
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+const SIZES    = ['S','M','L','XL','XXL'];
+const ROLE_KEY = 'jcclub_role';
 
 let stock        = [];
 let currentRole  = null;
-let currentPhoto = null; // { file, dataUrl }
+let currentPhoto = null;
+let liveUnsubscribe = null; // holds the onValue unsubscribe fn
 
-// ── INIT ────────────────────────────────────────────────
+// ── INIT ────────────────────────────────────────
 async function init() {
   const saved = localStorage.getItem(ROLE_KEY);
   if (saved === 'admin' || saved === 'reseller') {
@@ -277,8 +287,8 @@ async function init() {
   }
 }
 
-// ── AUTH ─────────────────────────────────────────────────
-function checkPin() {
+// ── AUTH ─────────────────────────────────────────
+window.checkPin = function() {
   const val = document.getElementById('pin-input').value.trim();
   if (val === ADMIN_PIN) {
     localStorage.setItem(ROLE_KEY, 'admin');
@@ -293,13 +303,14 @@ function checkPin() {
   }
 }
 
-function enterAsReseller() {
+window.enterAsReseller = function() {
   localStorage.setItem(ROLE_KEY, 'reseller');
   currentRole = 'reseller';
   bootApp();
 }
 
-function lockApp() {
+window.lockApp = function() {
+  if (liveUnsubscribe) liveUnsubscribe();
   localStorage.removeItem(ROLE_KEY);
   location.reload();
 }
@@ -310,12 +321,11 @@ function shake() {
   setTimeout(() => inp.classList.remove('error'), 400);
 }
 
-// ── BOOT ────────────────────────────────────────────────
+// ── BOOT ─────────────────────────────────────────
 async function bootApp() {
   show('loading-screen');
   hide('pin-screen');
 
-  // Role UI
   const badge = document.getElementById('role-badge');
   if (currentRole === 'admin') {
     badge.textContent = 'ADMIN';
@@ -326,48 +336,70 @@ async function bootApp() {
     badge.className = 'h-role reseller';
   }
 
-  await fetchStock();
+  await fetchStock();  // initial load
 
   document.getElementById('loading-screen').classList.add('hide');
   setTimeout(() => hide('loading-screen'), 350);
   show('app');
   buildSizesGrid('add-sizes-grid', {});
   renderStock();
+
+  // live updates — rebuilds list whenever Firebase data changes
+  subscribeStock();
 }
 
-// ── JSONBIN DB ───────────────────────────────────────────
+// ── FIREBASE DB ───────────────────────────────────
 async function fetchStock() {
   const status = document.getElementById('db-status');
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-      headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
-    });
-    if (!res.ok) throw new Error('DB error ' + res.status);
-    const data = await res.json();
-    stock = data.stock || [];
+    const snap = await get(ref(db, 'stock'));
+    stock = snap.exists() ? Object.values(snap.val()) : [];
+    // sort newest first (by id which is timestamp)
+    stock.sort((a, b) => Number(b.id) - Number(a.id));
     status.textContent = `✅ ${stock.length} items loaded`;
     status.className = 'db-status ok';
   } catch(e) {
-    status.textContent = '⚠️ Could not reach database — check JSONBin config';
+    status.textContent = '⚠️ Could not reach Firebase — check config / rules';
     status.className = 'db-status err';
     stock = [];
   }
 }
 
-async function pushStock() {
-  const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Master-Key': JSONBIN_KEY
-    },
-    body: JSON.stringify({ stock })
+function subscribeStock() {
+  // unsubscribe any previous listener
+  if (liveUnsubscribe) liveUnsubscribe();
+
+  liveUnsubscribe = onValue(ref(db, 'stock'), snap => {
+    stock = snap.exists() ? Object.values(snap.val()) : [];
+    stock.sort((a, b) => Number(b.id) - Number(a.id));
+
+    const status = document.getElementById('db-status');
+    if (status) {
+      status.textContent = `✅ ${stock.length} items · live`;
+      status.className = 'db-status ok';
+    }
+    renderStock();
+  }, err => {
+    const status = document.getElementById('db-status');
+    if (status) {
+      status.textContent = '⚠️ Live sync error — check Firebase rules';
+      status.className = 'db-status err';
+    }
   });
-  if (!res.ok) throw new Error('Save failed: ' + res.status);
 }
 
-// ── PHOTO ────────────────────────────────────────────────
-function handlePhoto(input) {
+// Write a single item node  →  stock/<id>
+async function pushItem(item) {
+  await set(ref(db, `stock/${item.id}`), item);
+}
+
+// Delete a single item node
+async function removeItem(id) {
+  await remove(ref(db, `stock/${id}`));
+}
+
+// ── PHOTO ─────────────────────────────────────────
+window.handlePhoto = function(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -382,7 +414,7 @@ function handlePhoto(input) {
   input.value = '';
 }
 
-function removePhoto() {
+window.removePhoto = function() {
   currentPhoto = null;
   const area = document.getElementById('photo-area');
   area.innerHTML = `<span style="font-size:32px">🖼️</span><span style="font-size:13px;color:var(--g3)">Tap to choose photo</span>`;
@@ -405,8 +437,8 @@ async function uploadImgBB(file) {
   throw new Error(data?.error?.message || 'ImgBB failed');
 }
 
-// ── SAVE NEW ITEM ────────────────────────────────────────
-async function saveItem() {
+// ── SAVE NEW ITEM ─────────────────────────────────
+window.saveItem = async function() {
   if (currentRole !== 'admin') return;
   const name = document.getElementById('item-name').value.trim();
   if (!name) { toast('Enter an item name', 'error'); return; }
@@ -430,22 +462,20 @@ async function saveItem() {
       updatedAt: new Date().toLocaleDateString('en-IN')
     };
 
-    stock.unshift(item);
-    await pushStock();
+    await pushItem(item);  // write only this item node
     resetForm();
     toast('Item saved!', 'success');
     switchTab('stock');
-    renderStock();
+    // renderStock is called automatically by onValue listener
   } catch(e) {
     toast('Error: ' + e.message, 'error');
-    stock.shift(); // rollback
   }
 
   btn.disabled = false; btn.textContent = 'SAVE TO STOCK';
 }
 
-// ── SIZES GRID ───────────────────────────────────────────
-function buildSizesGrid(id, values) {
+// ── SIZES GRID ────────────────────────────────────
+window.buildSizesGrid = function(id, values) {
   const grid = document.getElementById(id);
   if (!grid) return;
   const isReadonly = currentRole === 'reseller';
@@ -463,13 +493,13 @@ function buildSizesGrid(id, values) {
     </div>`).join('');
 }
 
-function changeQty(gridId, size, delta) {
+window.changeQty = function(gridId, size, delta) {
   const inp = document.getElementById(`qty-${gridId}-${size}`);
   let v = parseInt(inp.value) || 0;
   inp.value = Math.max(0, Math.min(999, v + delta));
 }
 
-function clampQty(inp) {
+window.clampQty = function(inp) {
   let v = parseInt(inp.value);
   if (isNaN(v) || v < 0) inp.value = 0;
   else if (v > 999) inp.value = 999;
@@ -488,10 +518,11 @@ function resetForm() {
   document.getElementById('upload-status').textContent = '';
 }
 
-// ── STOCK LIST ────────────────────────────────────────────
-function renderStock() {
+// ── STOCK LIST ────────────────────────────────────
+window.renderStock = function() {
   const q = (document.getElementById('search-input')?.value || '').toLowerCase();
   const list = document.getElementById('stock-list');
+  if (!list) return;
   const filtered = stock.filter(it => it.name.toLowerCase().includes(q));
 
   if (!filtered.length) {
@@ -525,11 +556,11 @@ function renderStock() {
   filtered.forEach(item => buildSizesGrid(`eg-${item.id}`, item.sizes));
 }
 
-function toggleItem(id) {
+window.toggleItem = function(id) {
   document.getElementById(`si-${id}`)?.classList.toggle('open');
 }
 
-async function updateItem(id) {
+window.updateItem = async function(id) {
   if (currentRole !== 'admin') return;
   const item = stock.find(it => it.id === id);
   if (!item) return;
@@ -538,26 +569,24 @@ async function updateItem(id) {
   try {
     item.sizes = getSizesFromGrid(`eg-${id}`);
     item.updatedAt = new Date().toLocaleDateString('en-IN');
-    await pushStock();
+    await pushItem(item);  // write only this item node
     toast('Stock updated!', 'success');
-    renderStock();
-    setTimeout(() => document.getElementById(`si-${id}`)?.classList.add('open'), 60);
+    // onValue listener will re-render; re-open the card
+    setTimeout(() => document.getElementById(`si-${id}`)?.classList.add('open'), 200);
   } catch(e) {
     toast('Save failed: ' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'UPDATE STOCK'; }
   }
 }
 
-async function deleteItem(id) {
+window.deleteItem = async function(id) {
   if (!confirm('Delete this item?')) return;
-  stock = stock.filter(it => it.id !== id);
   try {
-    await pushStock();
+    await removeItem(id);
     toast('Deleted');
-    renderStock();
+    // onValue listener will re-render automatically
   } catch(e) {
     toast('Delete failed', 'error');
-    await fetchStock(); renderStock();
   }
 }
 
@@ -565,8 +594,8 @@ function sizeSummary(sizes) {
   return SIZES.map(s => `${s}:${sizes[s]??0}`).join(' · ');
 }
 
-// ── TABS ─────────────────────────────────────────────────
-function switchTab(tab) {
+// ── TABS ──────────────────────────────────────────
+window.switchTab = function(tab) {
   ['stock','add'].forEach(t => {
     document.getElementById(`tab-${t}`).style.display = t===tab ? '' : 'none';
     document.getElementById(`tab-${t}-btn`)?.classList.toggle('active', t===tab);
@@ -574,13 +603,13 @@ function switchTab(tab) {
   if (tab === 'stock') renderStock();
 }
 
-// ── UTILS ────────────────────────────────────────────────
-function show(id) { document.getElementById(id).style.display = ''; }
-function hide(id) { document.getElementById(id).style.display = 'none'; }
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ── UTILS ─────────────────────────────────────────
+function show(id) { const el = document.getElementById(id); if(el) el.style.display = ''; }
+function hide(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
+function esc(s)   { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 let toastTimer;
-function toast(msg, type='') {
+window.toast = function(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'show ' + type;
   clearTimeout(toastTimer);
