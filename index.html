@@ -8,16 +8,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
 :root {
   --black:#0a0a0a;--white:#fff;--g1:#f5f5f5;--g2:#e8e8e8;--g3:#999;--g4:#555;
-  --danger:#e53e3e;--success:#22c55e;--r:10px;--sh:0 2px 16px rgba(0,0,0,.08);
+  --danger:#e53e3e;--success:#22c55e;--blue:#3b82f6;--r:10px;--sh:0 2px 16px rgba(0,0,0,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Jost',sans-serif;background:var(--g1);color:var(--black);min-height:100vh}
 
 /* PIN SCREEN */
 #pin-screen{position:fixed;inset:0;background:var(--black);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;z-index:999;gap:20px;padding:32px}
+  align-items:center;justify-content:center;z-index:999;gap:18px;padding:32px}
 .logo-big{font-size:30px;font-weight:700;color:var(--white);letter-spacing:4px}
 .sub-text{font-size:12px;color:var(--g3);letter-spacing:2px;text-transform:uppercase}
+.pick-label{font-size:11px;color:var(--g3);letter-spacing:1px;text-transform:uppercase;margin-top:6px}
+.admin-pick{display:flex;gap:8px;width:100%;max-width:300px;justify-content:center}
+.admin-chip{flex:1;padding:11px 4px;border:1.5px solid #333;border-radius:var(--r);
+  background:#1a1a1a;color:var(--g3);font-family:'Jost',sans-serif;font-size:13px;
+  font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .2s}
+.admin-chip.sel{background:var(--white);color:var(--black);border-color:var(--white)}
 #pin-input{width:100%;max-width:300px;padding:14px 20px;font-family:'Jost',sans-serif;
   font-size:18px;letter-spacing:4px;text-align:center;background:#1a1a1a;
   border:1.5px solid #333;border-radius:var(--r);color:var(--white);outline:none;transition:border-color .2s}
@@ -116,7 +122,8 @@ header{background:var(--black);padding:14px 20px;display:flex;align-items:center
 .stock-meta{flex:1;min-width:0}
 .stock-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;margin-bottom:3px}
-.stock-summary{font-size:11px;color:var(--g3)}
+.stock-summary{font-size:11px;color:var(--g3);line-height:1.5}
+.stock-by{color:var(--g4);font-weight:600}
 .stock-chevron{font-size:16px;color:var(--g3);transition:transform .2s}
 .stock-item.open .stock-chevron{transform:rotate(180deg)}
 .stock-sizes{display:none;padding:0 14px 14px;border-top:1px solid var(--g1);padding-top:12px}
@@ -130,6 +137,21 @@ header{background:var(--black);padding:14px 20px;display:flex;align-items:center
   border:1.5px solid #fecaca;border-radius:8px;font-family:'Jost',sans-serif;
   font-size:13px;cursor:pointer;transition:all .2s}
 .delete-btn:hover{background:#fff5f5}
+
+/* LOG LIST */
+.log-item{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);
+  padding:12px 14px;margin-bottom:10px;display:flex;gap:11px;align-items:flex-start}
+.log-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.log-dot.add{background:var(--success)}
+.log-dot.update{background:var(--blue)}
+.log-dot.delete{background:var(--danger)}
+.log-body{flex:1;min-width:0}
+.log-line1{font-size:13px;margin-bottom:2px;line-height:1.4}
+.log-line1 .who{font-weight:700;color:var(--black)}
+.log-line1 .act{color:var(--g4)}
+.log-line1 .iname{font-weight:600;color:var(--black)}
+.log-details{font-size:12px;color:var(--g4);margin-bottom:2px;word-break:break-word}
+.log-time{font-size:11px;color:var(--g3)}
 
 .empty-state{text-align:center;padding:60px 20px;color:var(--g3)}
 .empty-state .ei{font-size:48px;margin-bottom:12px}
@@ -177,7 +199,9 @@ input[type="file"]{display:none}
 <div id="pin-screen" style="display:none">
   <div class="logo-big">JCCLUB</div>
   <div class="sub-text">Stock Manager</div>
-  <input type="password" id="pin-input" placeholder="Admin PIN" maxlength="30"
+  <div class="pick-label">Who are you?</div>
+  <div class="admin-pick" id="admin-pick"></div>
+  <input type="password" id="pin-input" placeholder="Your PIN" maxlength="30"
     onkeydown="if(event.key==='Enter') checkPin()" autocomplete="off">
   <div id="pin-error"></div>
   <div class="pin-btn-row">
@@ -196,7 +220,8 @@ input[type="file"]{display:none}
 
   <div class="tabs" id="tab-bar">
     <button class="tab-btn active" id="tab-stock-btn" onclick="switchTab('stock')">📦 Stock</button>
-    <button class="tab-btn" id="tab-add-btn" onclick="switchTab('add')" style="display:none">＋ Add Item</button>
+    <button class="tab-btn" id="tab-add-btn" onclick="switchTab('add')" style="display:none">＋ Add</button>
+    <button class="tab-btn" id="tab-log-btn" onclick="switchTab('log')" style="display:none">🧾 Log</button>
   </div>
 
   <!-- STOCK TAB -->
@@ -236,6 +261,12 @@ input[type="file"]{display:none}
 
     <button class="save-btn" id="save-btn" onclick="saveItem()">SAVE TO STOCK</button>
   </div>
+
+  <!-- LOG TAB (admin only) -->
+  <div id="tab-log" class="section" style="display:none">
+    <div class="db-status" id="log-status">Loading log…</div>
+    <div id="log-list"></div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -244,13 +275,20 @@ input[type="file"]{display:none}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import {
-  getDatabase, ref, get, set, onValue, remove
+  getDatabase, ref, get, set, onValue, remove, push
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
 // ═══════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════
-const ADMIN_PIN = 'jcclub916';
+//  Each admin has their own PIN so the change-log
+//  knows exactly who made every change.
+//  👉 CHANGE THESE PINS to real private ones.
+const ADMINS = {
+  'JC':     'jc916',
+  'Racket': 'racket916'
+};
+
 const IMGBB_KEY = 'eefc443b08b231582bb6f78e52202294';
 
 const firebaseConfig = {
@@ -267,51 +305,90 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-const SIZES    = ['S','M','L','XL','XXL'];
-const ROLE_KEY = 'jcclub_role';
+const SIZES     = ['S','M','L','XL','XXL'];
+const ROLE_KEY  = 'jcclub_role';
+const ADMIN_KEY = 'jcclub_admin';
 
-let stock        = [];
-let currentRole  = null;
-let currentPhoto = null;
-let liveUnsubscribe = null; // holds the onValue unsubscribe fn
+let stock         = [];
+let logs          = [];
+let currentRole   = null;
+let currentAdmin  = null;   // 'Nashad' | 'Salman' | 'Suhail'
+let selectedAdmin = null;   // chosen chip on the PIN screen
+let currentPhoto  = null;
+let liveUnsubscribe = null; // stock listener
+let liveLogUnsub    = null; // log listener
 
 // ── INIT ────────────────────────────────────────
 async function init() {
-  const saved = localStorage.getItem(ROLE_KEY);
-  if (saved === 'admin' || saved === 'reseller') {
-    currentRole = saved;
+  const savedRole  = localStorage.getItem(ROLE_KEY);
+  const savedAdmin = localStorage.getItem(ADMIN_KEY);
+  if (savedRole === 'admin' && savedAdmin && ADMINS[savedAdmin]) {
+    currentRole = 'admin';
+    currentAdmin = savedAdmin;
+    await bootApp();
+  } else if (savedRole === 'reseller') {
+    currentRole = 'reseller';
     await bootApp();
   } else {
     hide('loading-screen');
     show('pin-screen');
+    buildAdminChips();
   }
+}
+
+// ── ADMIN PICKER ─────────────────────────────────
+function buildAdminChips() {
+  const box = document.getElementById('admin-pick');
+  box.innerHTML = Object.keys(ADMINS).map(n =>
+    `<button class="admin-chip" data-name="${n}" onclick="pickAdmin('${n}')">${n}</button>`
+  ).join('');
+}
+
+window.pickAdmin = function(name) {
+  selectedAdmin = name;
+  document.querySelectorAll('.admin-chip').forEach(c =>
+    c.classList.toggle('sel', c.dataset.name === name));
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-input').focus();
 }
 
 // ── AUTH ─────────────────────────────────────────
 window.checkPin = function() {
+  const err = document.getElementById('pin-error');
+  if (!selectedAdmin) {
+    err.textContent = 'Tap your name first';
+    setTimeout(() => err.textContent = '', 1800);
+    return;
+  }
   const val = document.getElementById('pin-input').value.trim();
-  if (val === ADMIN_PIN) {
+  if (ADMINS[selectedAdmin] && ADMINS[selectedAdmin] === val) {
     localStorage.setItem(ROLE_KEY, 'admin');
-    currentRole = 'admin';
+    localStorage.setItem(ADMIN_KEY, selectedAdmin);
+    currentRole  = 'admin';
+    currentAdmin = selectedAdmin;
     document.getElementById('pin-input').value = '';
     bootApp();
   } else {
     shake();
-    document.getElementById('pin-error').textContent = 'Wrong PIN';
+    err.textContent = 'Wrong PIN for ' + selectedAdmin;
     document.getElementById('pin-input').value = '';
-    setTimeout(() => document.getElementById('pin-error').textContent = '', 1500);
+    setTimeout(() => err.textContent = '', 1800);
   }
 }
 
 window.enterAsReseller = function() {
   localStorage.setItem(ROLE_KEY, 'reseller');
+  localStorage.removeItem(ADMIN_KEY);
   currentRole = 'reseller';
+  currentAdmin = null;
   bootApp();
 }
 
 window.lockApp = function() {
   if (liveUnsubscribe) liveUnsubscribe();
+  if (liveLogUnsub)    liveLogUnsub();
   localStorage.removeItem(ROLE_KEY);
+  localStorage.removeItem(ADMIN_KEY);
   location.reload();
 }
 
@@ -328,9 +405,10 @@ async function bootApp() {
 
   const badge = document.getElementById('role-badge');
   if (currentRole === 'admin') {
-    badge.textContent = 'ADMIN';
+    badge.textContent = '⚙ ' + (currentAdmin || 'ADMIN').toUpperCase();
     badge.className = 'h-role admin';
     document.getElementById('tab-add-btn').style.display = '';
+    document.getElementById('tab-log-btn').style.display = '';
   } else {
     badge.textContent = 'RESELLER';
     badge.className = 'h-role reseller';
@@ -344,17 +422,17 @@ async function bootApp() {
   buildSizesGrid('add-sizes-grid', {});
   renderStock();
 
-  // live updates — rebuilds list whenever Firebase data changes
+  // live updates
   subscribeStock();
+  if (currentRole === 'admin') subscribeLogs();
 }
 
-// ── FIREBASE DB ───────────────────────────────────
+// ── FIREBASE: STOCK ───────────────────────────────
 async function fetchStock() {
   const status = document.getElementById('db-status');
   try {
     const snap = await get(ref(db, 'stock'));
     stock = snap.exists() ? Object.values(snap.val()) : [];
-    // sort newest first (by id which is timestamp)
     stock.sort((a, b) => Number(b.id) - Number(a.id));
     status.textContent = `✅ ${stock.length} items loaded`;
     status.className = 'db-status ok';
@@ -366,13 +444,10 @@ async function fetchStock() {
 }
 
 function subscribeStock() {
-  // unsubscribe any previous listener
   if (liveUnsubscribe) liveUnsubscribe();
-
   liveUnsubscribe = onValue(ref(db, 'stock'), snap => {
     stock = snap.exists() ? Object.values(snap.val()) : [];
     stock.sort((a, b) => Number(b.id) - Number(a.id));
-
     const status = document.getElementById('db-status');
     if (status) {
       status.textContent = `✅ ${stock.length} items · live`;
@@ -388,14 +463,42 @@ function subscribeStock() {
   });
 }
 
-// Write a single item node  →  stock/<id>
 async function pushItem(item) {
   await set(ref(db, `stock/${item.id}`), item);
 }
-
-// Delete a single item node
 async function removeItem(id) {
   await remove(ref(db, `stock/${id}`));
+}
+
+// ── FIREBASE: LOG ─────────────────────────────────
+// Every change is appended under logs/  (same DB)
+async function writeLog(action, item, details) {
+  try {
+    const entry = {
+      admin:    currentAdmin || currentRole || 'unknown',
+      action:   action,               // 'add' | 'update' | 'delete'
+      itemId:   item.id || '',
+      itemName: item.name || '',
+      details:  details || '',
+      ts:       Date.now(),
+      at:       new Date().toLocaleString('en-IN')
+    };
+    await push(ref(db, 'logs'), entry);
+  } catch(e) {
+    console.warn('log write failed', e);
+  }
+}
+
+function subscribeLogs() {
+  if (liveLogUnsub) liveLogUnsub();
+  liveLogUnsub = onValue(ref(db, 'logs'), snap => {
+    logs = snap.exists() ? Object.values(snap.val()) : [];
+    logs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    renderLog();
+  }, err => {
+    const st = document.getElementById('log-status');
+    if (st) { st.textContent = '⚠️ Log sync error — check rules'; st.className = 'db-status err'; }
+  });
 }
 
 // ── PHOTO ─────────────────────────────────────────
@@ -459,14 +562,15 @@ window.saveItem = async function() {
       name,
       photo: photoUrl,
       sizes: getSizesFromGrid('add-sizes-grid'),
-      updatedAt: new Date().toLocaleDateString('en-IN')
+      updatedAt: new Date().toLocaleDateString('en-IN'),
+      updatedBy: currentAdmin
     };
 
-    await pushItem(item);  // write only this item node
+    await pushItem(item);
+    await writeLog('add', item, 'Added — ' + nonZeroSummary(item.sizes));
     resetForm();
     toast('Item saved!', 'success');
     switchTab('stock');
-    // renderStock is called automatically by onValue listener
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   }
@@ -539,7 +643,8 @@ window.renderStock = function() {
           : `<div class="stock-thumb-ph">👕</div>`}
         <div class="stock-meta">
           <div class="stock-name">${esc(item.name)}</div>
-          <div class="stock-summary">${sizeSummary(item.sizes)} · ${item.updatedAt||''}</div>
+          <div class="stock-summary">${sizeSummary(item.sizes)}<br>
+            ${item.updatedBy ? `<span class="stock-by">✎ ${esc(item.updatedBy)}</span> · ` : ''}${item.updatedAt || ''}</div>
         </div>
         <div class="stock-chevron">⌄</div>
       </div>
@@ -567,11 +672,19 @@ window.updateItem = async function(id) {
   const btn = document.querySelector(`#si-${id} .update-btn`);
   if (btn) { btn.disabled = true; btn.textContent = 'SAVING…'; }
   try {
+    const oldSizes = { ...item.sizes };
     item.sizes = getSizesFromGrid(`eg-${id}`);
     item.updatedAt = new Date().toLocaleDateString('en-IN');
-    await pushItem(item);  // write only this item node
+    item.updatedBy = currentAdmin;
+    await pushItem(item);
+
+    const diff = SIZES
+      .filter(s => (oldSizes[s] || 0) !== (item.sizes[s] || 0))
+      .map(s => `${s} ${oldSizes[s] || 0}→${item.sizes[s] || 0}`)
+      .join(', ');
+    await writeLog('update', item, diff || 'no size change');
+
     toast('Stock updated!', 'success');
-    // onValue listener will re-render; re-open the card
     setTimeout(() => document.getElementById(`si-${id}`)?.classList.add('open'), 200);
   } catch(e) {
     toast('Save failed: ' + e.message, 'error');
@@ -580,33 +693,68 @@ window.updateItem = async function(id) {
 }
 
 window.deleteItem = async function(id) {
+  const item = stock.find(it => it.id === id);
   if (!confirm('Delete this item?')) return;
   try {
     await removeItem(id);
+    if (item) await writeLog('delete', item, 'Deleted — was ' + nonZeroSummary(item.sizes));
     toast('Deleted');
-    // onValue listener will re-render automatically
   } catch(e) {
     toast('Delete failed', 'error');
   }
 }
 
 function sizeSummary(sizes) {
-  return SIZES.map(s => `${s}:${sizes[s]??0}`).join(' · ');
+  return SIZES.map(s => `${s}:${sizes[s] ?? 0}`).join(' · ');
 }
+function nonZeroSummary(sizes) {
+  const parts = SIZES.filter(s => (sizes[s] || 0) > 0).map(s => `${s}:${sizes[s]}`);
+  return parts.length ? parts.join(', ') : 'all sizes 0';
+}
+
+// ── LOG LIST ──────────────────────────────────────
+window.renderLog = function() {
+  const list = document.getElementById('log-list');
+  if (!list) return;
+  const st = document.getElementById('log-status');
+  if (st) { st.textContent = `${logs.length} changes logged · live`; st.className = 'db-status ok'; }
+
+  const recent = logs.slice(0, 150);
+  if (!recent.length) {
+    list.innerHTML = `<div class="empty-state"><div class="ei">🧾</div><p>No changes logged yet.</p></div>`;
+    return;
+  }
+  list.innerHTML = recent.map(l => `
+    <div class="log-item">
+      <div class="log-dot ${l.action || ''}"></div>
+      <div class="log-body">
+        <div class="log-line1">
+          <span class="who">${esc(l.admin || '?')}</span>
+          <span class="act">${actWord(l.action)}</span>
+          <span class="iname">${esc(l.itemName || '')}</span>
+        </div>
+        ${l.details ? `<div class="log-details">${esc(l.details)}</div>` : ''}
+        <div class="log-time">${esc(l.at || '')}</div>
+      </div>
+    </div>`).join('');
+}
+function actWord(a) { return a === 'add' ? 'added' : a === 'delete' ? 'deleted' : 'updated'; }
 
 // ── TABS ──────────────────────────────────────────
 window.switchTab = function(tab) {
-  ['stock','add'].forEach(t => {
-    document.getElementById(`tab-${t}`).style.display = t===tab ? '' : 'none';
-    document.getElementById(`tab-${t}-btn`)?.classList.toggle('active', t===tab);
+  ['stock','add','log'].forEach(t => {
+    const sec = document.getElementById(`tab-${t}`);
+    if (sec) sec.style.display = t === tab ? '' : 'none';
+    document.getElementById(`tab-${t}-btn`)?.classList.toggle('active', t === tab);
   });
   if (tab === 'stock') renderStock();
+  if (tab === 'log')   renderLog();
 }
 
 // ── UTILS ─────────────────────────────────────────
 function show(id) { const el = document.getElementById(id); if(el) el.style.display = ''; }
 function hide(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
-function esc(s)   { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 let toastTimer;
 window.toast = function(msg, type='') {
