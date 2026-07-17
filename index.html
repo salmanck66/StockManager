@@ -170,6 +170,39 @@ header{background:var(--black);padding:14px 20px;display:flex;align-items:center
 .log-details{font-size:12px;color:var(--g4);margin-bottom:2px;word-break:break-word}
 .log-time{font-size:11px;color:var(--g3)}
 
+/* SALES / SETTLEMENT */
+.log-toggle{display:flex;gap:8px;margin-bottom:14px}
+.log-toggle-btn{flex:1;padding:10px;border:1.5px solid var(--g2);border-radius:8px;
+  background:var(--white);color:var(--g3);font-family:'Jost',sans-serif;font-size:13px;
+  font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .2s}
+.log-toggle-btn.active{background:var(--black);color:var(--white);border-color:var(--black)}
+.month-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.month-row button{width:40px;height:40px;border:1.5px solid var(--g2);border-radius:8px;
+  background:var(--white);font-size:18px;cursor:pointer;transition:border-color .2s}
+.month-row button:hover{border-color:#999}
+.month-label{font-size:15px;font-weight:600;letter-spacing:.5px}
+.settle{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:16px}
+.settle-line{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:9px 0;font-size:13px;border-bottom:1px solid var(--g1)}
+.settle-line .lo{font-size:11px;color:var(--g3)}
+.settle-amt{font-weight:700;white-space:nowrap}
+.settle-net{margin-top:12px;padding:13px;border-radius:8px;background:var(--g1);
+  text-align:center;font-size:15px;font-weight:700;letter-spacing:.3px}
+.settle-net.owed{background:#fff5f5;color:var(--danger)}
+.settle-net.clear{background:#f0fdf4;color:#16a34a}
+.settle-own{font-size:11px;color:var(--g3);text-align:center;margin-top:10px}
+.sale-item{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);
+  padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;
+  gap:12px;align-items:center;border-left:3px solid var(--g2)}
+.sale-item.cross{border-left-color:var(--danger)}
+.sale-item.own{border-left-color:var(--g2)}
+.sale-l{min-width:0}
+.sale-title{font-size:13px;margin-bottom:2px;line-height:1.4}
+.sale-title b{font-weight:700}
+.sale-sub{font-size:11px;color:var(--g3)}
+.sale-amt{font-size:16px;font-weight:700;white-space:nowrap;color:var(--danger)}
+.sale-own-tag{font-size:11px;color:var(--g3);font-style:italic;white-space:nowrap}
+
 .empty-state{text-align:center;padding:60px 20px;color:var(--g3)}
 .empty-state .ei{font-size:48px;margin-bottom:12px}
 .empty-state p{font-size:14px}
@@ -278,6 +311,11 @@ input[type="file"]{display:none}
     </div>
 
     <div class="card">
+      <div class="card-title">Price (₹ per piece)</div>
+      <input type="number" class="text-input" id="item-price" placeholder="e.g. 499" min="0" inputmode="numeric">
+    </div>
+
+    <div class="card">
       <div class="card-title">Stock by Size</div>
       <div class="sizes-grid" id="add-sizes-grid"></div>
     </div>
@@ -287,8 +325,25 @@ input[type="file"]{display:none}
 
   <!-- LOG TAB (admin only) -->
   <div id="tab-log" class="section" style="display:none">
-    <div class="db-status" id="log-status">Loading log…</div>
-    <div id="log-list"></div>
+    <div class="db-status" id="log-status">Loading…</div>
+    <div class="log-toggle">
+      <button id="logtab-sales-btn" class="log-toggle-btn active" onclick="switchLogView('sales')">💰 Sales</button>
+      <button id="logtab-activity-btn" class="log-toggle-btn" onclick="switchLogView('activity')">🧾 Activity</button>
+    </div>
+
+    <div id="logview-sales">
+      <div class="month-row">
+        <button onclick="changeMonth(-1)">‹</button>
+        <div class="month-label" id="month-label">—</div>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+      <div id="settlement-box"></div>
+      <div id="sales-list"></div>
+    </div>
+
+    <div id="logview-activity" style="display:none">
+      <div id="activity-list"></div>
+    </div>
   </div>
 </div>
 
@@ -342,6 +397,8 @@ let currentAdmin  = null;   // 'Nashad' | 'Salman' | 'Suhail'
 let selectedAdmin = null;   // chosen chip on the PIN screen
 let addOwner      = null;   // selected owner on the Add tab
 let ownerFilter   = 'all';  // stock list filter: 'all' | owner name
+let logView       = 'sales';// log tab sub-view: 'sales' | 'activity'
+let viewMonth     = new Date(new Date().getFullYear(), new Date().getMonth(), 1); // settlement month
 let currentPhoto  = null;
 let liveUnsubscribe = null; // stock listener
 let liveLogUnsub    = null; // log listener
@@ -555,10 +612,13 @@ async function removeItem(id) {
 }
 
 // ── FIREBASE: LOG ─────────────────────────────────
-// Every change is appended under logs/  (same DB)
-async function writeLog(action, item, details) {
+// All entries live under logs/ but carry a `kind`:
+//   'change' → adds, deletes, restocks, price/owner edits
+//   'sale'   → stock going out (a decrease). Drives money.
+async function writeChange(action, item, details) {
   try {
-    const entry = {
+    await push(ref(db, 'logs'), {
+      kind:     'change',
       admin:    currentAdmin || currentRole || 'unknown',
       action:   action,               // 'add' | 'update' | 'delete'
       itemId:   item.id || '',
@@ -566,10 +626,22 @@ async function writeLog(action, item, details) {
       details:  details || '',
       ts:       Date.now(),
       at:       new Date().toLocaleString('en-IN')
-    };
-    await push(ref(db, 'logs'), entry);
+    });
   } catch(e) {
-    console.warn('log write failed', e);
+    console.warn('change log failed', e);
+  }
+}
+
+async function writeSale(s) {
+  try {
+    await push(ref(db, 'logs'), {
+      kind: 'sale',
+      ...s,                            // seller, owner, itemId, itemName, qty, breakdown, unitPrice, amount, cross
+      ts:   Date.now(),
+      at:   new Date().toLocaleString('en-IN')
+    });
+  } catch(e) {
+    console.warn('sale log failed', e);
   }
 }
 
@@ -642,18 +714,20 @@ window.saveItem = async function() {
     }
 
     const owner = addOwner || getSelectedOwner('add-owner-pick') || OWNERS[0];
+    const price = Number(document.getElementById('item-price').value) || 0;
     const item = {
       id: Date.now().toString(),
       name,
       photo: photoUrl,
       owner,
+      price,
       sizes: getSizesFromGrid('add-sizes-grid'),
       updatedAt: new Date().toLocaleDateString('en-IN'),
       updatedBy: currentAdmin
     };
 
     await pushItem(item);
-    await writeLog('add', item, `Added [owner: ${owner}] — ` + nonZeroSummary(item.sizes));
+    await writeChange('add', item, `Added [owner: ${owner}, ₹${price}] — ` + nonZeroSummary(item.sizes));
     resetForm();
     toast('Item saved!', 'success');
     switchTab('stock');
@@ -703,6 +777,7 @@ function getSizesFromGrid(gridId) {
 
 function resetForm() {
   document.getElementById('item-name').value = '';
+  document.getElementById('item-price').value = '';
   removePhoto();
   buildSizesGrid('add-sizes-grid', {});
   addOwner = OWNERS.includes(currentAdmin) ? currentAdmin : OWNERS[0];
@@ -733,7 +808,7 @@ window.renderStock = function() {
           : `<div class="stock-thumb-ph">👕</div>`}
         <div class="stock-meta">
           <div class="stock-name">${esc(item.name)}${ownerBadge(item.owner)}</div>
-          <div class="stock-summary">${sizeSummary(item.sizes)}<br>
+          <div class="stock-summary">${sizeSummary(item.sizes)}${(currentRole === 'admin' && item.price) ? ` · ₹${item.price}` : ''}<br>
             ${item.updatedBy ? `<span class="stock-by">✎ ${esc(item.updatedBy)}</span> · ` : ''}${item.updatedAt || ''}</div>
         </div>
         <div class="stock-chevron">⌄</div>
@@ -743,6 +818,10 @@ window.renderStock = function() {
         <div style="margin-bottom:14px">
           <div class="field-label">Owner</div>
           <div class="owner-pick" id="owner-${item.id}"></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="field-label">Price (₹ per piece)</div>
+          <input type="number" class="text-input" id="price-${item.id}" value="${item.price ?? ''}" min="0" inputmode="numeric" style="font-size:15px">
         </div>` : ''}
         <div class="sizes-grid" id="eg-${item.id}"></div>
         ${currentRole === 'admin' ? `
@@ -772,22 +851,57 @@ window.updateItem = async function(id) {
   try {
     const oldSizes = { ...item.sizes };
     const oldOwner = item.owner || '';
-    item.sizes = getSizesFromGrid(`eg-${id}`);
-    item.owner = getSelectedOwner(`owner-${id}`) || item.owner || null;
+    const oldPrice = Number(item.price) || 0;
+
+    const newSizes = getSizesFromGrid(`eg-${id}`);
+    const newOwner = getSelectedOwner(`owner-${id}`) || item.owner || null;
+    const newPrice = Number(document.getElementById(`price-${id}`)?.value) || 0;
+
+    item.sizes = newSizes;
+    item.owner = newOwner;
+    item.price = newPrice;
     item.updatedAt = new Date().toLocaleDateString('en-IN');
     item.updatedBy = currentAdmin;
     await pushItem(item);
 
-    const parts = [];
-    const diff = SIZES
-      .filter(s => (oldSizes[s] || 0) !== (item.sizes[s] || 0))
-      .map(s => `${s} ${oldSizes[s] || 0}→${item.sizes[s] || 0}`)
-      .join(', ');
-    if (diff) parts.push(diff);
-    if (oldOwner !== (item.owner || '')) parts.push(`owner ${oldOwner || '—'}→${item.owner || '—'}`);
-    await writeLog('update', item, parts.join(' · ') || 'no change');
+    // ── SALE: any size that went DOWN counts as sold by the current admin ──
+    let soldQty = 0;
+    const soldParts = [];
+    SIZES.forEach(s => {
+      const d = (oldSizes[s] || 0) - (newSizes[s] || 0);
+      if (d > 0) { soldQty += d; soldParts.push(`${s}×${d}`); }
+    });
+    if (soldQty > 0) {
+      const seller = currentAdmin;
+      const owner  = newOwner || '';
+      const cross  = !!(owner && seller && owner !== seller);   // sold someone else's stock
+      const unit   = newPrice;
+      await writeSale({
+        seller,
+        owner,
+        itemId:    id,
+        itemName:  item.name,
+        qty:       soldQty,
+        breakdown: soldParts.join(', '),
+        unitPrice: unit,
+        amount:    cross ? soldQty * unit : 0,
+        cross
+      });
+    }
 
-    toast('Stock updated!', 'success');
+    // ── CHANGE: restocks (size increases) + owner / price edits ──
+    const restockParts = [];
+    SIZES.forEach(s => {
+      const inc = (newSizes[s] || 0) - (oldSizes[s] || 0);
+      if (inc > 0) restockParts.push(`${s}+${inc}`);
+    });
+    const chgParts = [];
+    if (restockParts.length) chgParts.push('restock ' + restockParts.join(', '));
+    if (oldOwner !== (newOwner || '')) chgParts.push(`owner ${oldOwner || '—'}→${newOwner || '—'}`);
+    if (oldPrice !== newPrice) chgParts.push(`price ₹${oldPrice}→₹${newPrice}`);
+    if (chgParts.length) await writeChange('update', item, chgParts.join(' · '));
+
+    toast(soldQty > 0 ? `Recorded: ${soldQty} sold` : 'Stock updated!', 'success');
     setTimeout(() => document.getElementById(`si-${id}`)?.classList.add('open'), 200);
   } catch(e) {
     toast('Save failed: ' + e.message, 'error');
@@ -800,7 +914,7 @@ window.deleteItem = async function(id) {
   if (!confirm('Delete this item?')) return;
   try {
     await removeItem(id);
-    if (item) await writeLog('delete', item, `Deleted [owner: ${item.owner || '—'}] — was ` + nonZeroSummary(item.sizes));
+    if (item) await writeChange('delete', item, `Deleted [owner: ${item.owner || '—'}] — was ` + nonZeroSummary(item.sizes));
     toast('Deleted');
   } catch(e) {
     toast('Delete failed', 'error');
@@ -815,19 +929,125 @@ function nonZeroSummary(sizes) {
   return parts.length ? parts.join(', ') : 'all sizes 0';
 }
 
-// ── LOG LIST ──────────────────────────────────────
+// ── LOG: SALES + SETTLEMENT + ACTIVITY ────────────
 window.renderLog = function() {
-  const list = document.getElementById('log-list');
-  if (!list) return;
   const st = document.getElementById('log-status');
-  if (st) { st.textContent = `${logs.length} changes logged · live`; st.className = 'db-status ok'; }
+  if (st) { st.textContent = `${logs.length} entries · live`; st.className = 'db-status ok'; }
+  renderSalesView();
+  renderActivity();
+}
 
-  const recent = logs.slice(0, 150);
-  if (!recent.length) {
-    list.innerHTML = `<div class="empty-state"><div class="ei">🧾</div><p>No changes logged yet.</p></div>`;
+window.switchLogView = function(v) {
+  logView = v;
+  const sv = document.getElementById('logview-sales');
+  const av = document.getElementById('logview-activity');
+  if (sv) sv.style.display = v === 'sales' ? '' : 'none';
+  if (av) av.style.display = v === 'activity' ? '' : 'none';
+  document.getElementById('logtab-sales-btn')?.classList.toggle('active', v === 'sales');
+  document.getElementById('logtab-activity-btn')?.classList.toggle('active', v === 'activity');
+}
+
+window.changeMonth = function(delta) {
+  viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + delta, 1);
+  renderSalesView();
+}
+
+function renderSalesView() {
+  const vy = viewMonth.getFullYear(), vm = viewMonth.getMonth();
+  const ml = document.getElementById('month-label');
+  if (ml) ml.textContent = viewMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+  const monthSales = logs
+    .filter(l => l.kind === 'sale')
+    .filter(l => { const d = new Date(l.ts); return d.getFullYear() === vy && d.getMonth() === vm; })
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  // ── settlement: cross-sales only ──
+  const cross = {};                 // key `${seller}>${owner}` → {amount, qty}
+  const ownQty = {};                // seller → qty
+  monthSales.forEach(s => {
+    if (s.cross) {
+      const k = `${s.seller}>${s.owner}`;
+      cross[k] = cross[k] || { amount: 0, qty: 0 };
+      cross[k].amount += Number(s.amount) || 0;
+      cross[k].qty    += Number(s.qty) || 0;
+    } else {
+      ownQty[s.seller] = (ownQty[s.seller] || 0) + (Number(s.qty) || 0);
+    }
+  });
+
+  const box = document.getElementById('settlement-box');
+  if (box) {
+    const A = OWNERS[0], B = OWNERS[1];
+    const aB = cross[`${A}>${B}`] || { amount: 0, qty: 0 };  // A sold B's stock → A owes B
+    const bA = cross[`${B}>${A}`] || { amount: 0, qty: 0 };  // B sold A's stock → B owes A
+    const net = aB.amount - bA.amount;
+    let netHtml, netCls;
+    if (net > 0)      { netHtml = `${A} owes ${B} ₹${net}`;      netCls = 'owed'; }
+    else if (net < 0) { netHtml = `${B} owes ${A} ₹${-net}`;     netCls = 'owed'; }
+    else              { netHtml = 'All settled · ₹0';            netCls = 'clear'; }
+
+    const ownLine = (ownQty[A] || ownQty[B])
+      ? `<div class="settle-own">Own sales — ${A}: ${ownQty[A] || 0} · ${B}: ${ownQty[B] || 0} pcs</div>` : '';
+
+    box.innerHTML = `
+      <div class="settle">
+        <div class="settle-line">
+          <span>${esc(A)} sold ${esc(B)}'s stock <span class="lo">${aB.qty} pcs</span></span>
+          <span class="settle-amt">₹${aB.amount}</span>
+        </div>
+        <div class="settle-line">
+          <span>${esc(B)} sold ${esc(A)}'s stock <span class="lo">${bA.qty} pcs</span></span>
+          <span class="settle-amt">₹${bA.amount}</span>
+        </div>
+        <div class="settle-net ${netCls}">${esc(netHtml)}</div>
+        ${ownLine}
+      </div>`;
+  }
+
+  // ── sales list ──
+  const list = document.getElementById('sales-list');
+  if (list) {
+    if (!monthSales.length) {
+      list.innerHTML = `<div class="empty-state"><div class="ei">💰</div><p>No sales this month.</p></div>`;
+    } else {
+      list.innerHTML = monthSales.map(saleRow).join('');
+    }
+  }
+}
+
+function saleRow(s) {
+  const cross = s.cross;
+  const title = cross
+    ? `${esc(s.seller)} sold ${esc(s.owner)}'s <b>${esc(s.itemName)}</b>`
+    : `${esc(s.seller)} sold own <b>${esc(s.itemName)}</b>`;
+  const right = cross
+    ? `<div class="sale-amt">₹${Number(s.amount) || 0}</div>`
+    : `<div class="sale-own-tag">own</div>`;
+  const sub = `${esc(s.breakdown || ('×' + (s.qty || 0)))}`
+    + (cross && s.unitPrice ? ` · ₹${s.unitPrice}/pc` : '')
+    + ` · ${esc(s.at || '')}`;
+  return `<div class="sale-item ${cross ? 'cross' : 'own'}">
+    <div class="sale-l">
+      <div class="sale-title">${title}</div>
+      <div class="sale-sub">${sub}</div>
+    </div>
+    ${right}
+  </div>`;
+}
+
+function renderActivity() {
+  const acts = logs
+    .filter(l => l.kind !== 'sale')                 // 'change' + legacy entries
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+    .slice(0, 150);
+  const list = document.getElementById('activity-list');
+  if (!list) return;
+  if (!acts.length) {
+    list.innerHTML = `<div class="empty-state"><div class="ei">🧾</div><p>No changes yet.</p></div>`;
     return;
   }
-  list.innerHTML = recent.map(l => `
+  list.innerHTML = acts.map(l => `
     <div class="log-item">
       <div class="log-dot ${l.action || ''}"></div>
       <div class="log-body">
