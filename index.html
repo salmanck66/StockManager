@@ -107,6 +107,23 @@ header{background:var(--black);padding:14px 20px;display:flex;align-items:center
 .save-btn:hover{opacity:.85}
 .save-btn:disabled{opacity:.4;cursor:not-allowed}
 
+/* OWNER PICKER + BADGE + FILTER */
+.owner-pick{display:flex;gap:8px}
+.owner-chip{flex:1;padding:10px 4px;border:1.5px solid var(--g2);border-radius:8px;
+  background:var(--white);color:var(--g3);font-family:'Jost',sans-serif;font-size:13px;
+  font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .2s}
+.owner-chip.sel{background:var(--black);color:var(--white);border-color:var(--black)}
+.owner-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;
+  padding:2px 8px;border-radius:20px;background:var(--g1);color:var(--g4);
+  margin-left:6px;vertical-align:middle;text-transform:uppercase}
+.owner-badge.jc{background:#e0f2fe;color:#0369a1}
+.owner-badge.racket{background:#fef3c7;color:#b45309}
+.filter-row{display:flex;gap:8px;margin-bottom:14px}
+.filter-chip{flex:1;padding:9px 4px;border:1.5px solid var(--g2);border-radius:8px;
+  background:var(--white);color:var(--g3);font-family:'Jost',sans-serif;font-size:12px;
+  font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .2s}
+.filter-chip.sel{background:var(--black);color:var(--white);border-color:var(--black)}
+
 /* STOCK LIST */
 .search-input{width:100%;padding:11px 14px;font-family:'Jost',sans-serif;font-size:14px;
   border:1.5px solid var(--g2);border-radius:8px;outline:none;background:var(--white);
@@ -228,6 +245,7 @@ input[type="file"]{display:none}
   <div id="tab-stock" class="section">
     <div class="db-status" id="db-status">Connecting…</div>
     <input type="text" class="search-input" id="search-input" placeholder="Search jerseys…" oninput="renderStock()">
+    <div class="filter-row" id="owner-filter"></div>
     <div id="stock-list"></div>
   </div>
 
@@ -252,6 +270,11 @@ input[type="file"]{display:none}
     <div class="card">
       <div class="card-title">Item Name</div>
       <input type="text" class="text-input" id="item-name" placeholder="e.g. Brazil Home Kit 2024">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Owner</div>
+      <div class="owner-pick" id="add-owner-pick"></div>
     </div>
 
     <div class="card">
@@ -289,6 +312,9 @@ const ADMINS = {
   'Racket': 'racket916'
 };
 
+// Who can own a product (shown as a selector on Add/Edit).
+const OWNERS = ['JC', 'Racket'];
+
 const IMGBB_KEY = 'eefc443b08b231582bb6f78e52202294';
 
 const firebaseConfig = {
@@ -314,6 +340,8 @@ let logs          = [];
 let currentRole   = null;
 let currentAdmin  = null;   // 'Nashad' | 'Salman' | 'Suhail'
 let selectedAdmin = null;   // chosen chip on the PIN screen
+let addOwner      = null;   // selected owner on the Add tab
+let ownerFilter   = 'all';  // stock list filter: 'all' | owner name
 let currentPhoto  = null;
 let liveUnsubscribe = null; // stock listener
 let liveLogUnsub    = null; // log listener
@@ -420,11 +448,67 @@ async function bootApp() {
   setTimeout(() => hide('loading-screen'), 350);
   show('app');
   buildSizesGrid('add-sizes-grid', {});
+
+  // default the Add-tab owner to whoever is logged in (if they're an owner)
+  addOwner = OWNERS.includes(currentAdmin) ? currentAdmin : OWNERS[0];
+  buildAddOwnerPick();
+  buildOwnerFilter();
   renderStock();
 
   // live updates
   subscribeStock();
   if (currentRole === 'admin') subscribeLogs();
+}
+
+// ── OWNER PICKERS ─────────────────────────────────
+function buildAddOwnerPick() {
+  const box = document.getElementById('add-owner-pick');
+  if (!box) return;
+  box.innerHTML = OWNERS.map(o =>
+    `<button class="owner-chip${o === addOwner ? ' sel' : ''}" data-owner="${o}"
+       onclick="pickAddOwner('${o}')">${o}</button>`).join('');
+}
+window.pickAddOwner = function(o) {
+  addOwner = o;
+  document.querySelectorAll('#add-owner-pick .owner-chip').forEach(c =>
+    c.classList.toggle('sel', c.dataset.owner === o));
+}
+
+function buildItemOwnerPick(id, selected) {
+  const box = document.getElementById(`owner-${id}`);
+  if (!box) return;
+  box.innerHTML = OWNERS.map(o =>
+    `<button class="owner-chip${o === selected ? ' sel' : ''}" data-owner="${o}"
+       onclick="pickItemOwner('${id}','${o}')">${o}</button>`).join('');
+}
+window.pickItemOwner = function(id, o) {
+  document.querySelectorAll(`#owner-${id} .owner-chip`).forEach(c =>
+    c.classList.toggle('sel', c.dataset.owner === o));
+}
+// returns selected owner in a container, or null if none picked
+function getSelectedOwner(containerId) {
+  const sel = document.querySelector(`#${containerId} .owner-chip.sel`);
+  return sel ? sel.dataset.owner : null;
+}
+
+// ── OWNER FILTER ──────────────────────────────────
+function buildOwnerFilter() {
+  const box = document.getElementById('owner-filter');
+  if (!box) return;
+  const opts = ['all', ...OWNERS];
+  box.innerHTML = opts.map(o =>
+    `<button class="filter-chip${o === ownerFilter ? ' sel' : ''}" data-f="${o}"
+       onclick="setOwnerFilter('${o}')">${o === 'all' ? 'All' : o}</button>`).join('');
+}
+window.setOwnerFilter = function(f) {
+  ownerFilter = f;
+  document.querySelectorAll('#owner-filter .filter-chip').forEach(c =>
+    c.classList.toggle('sel', c.dataset.f === f));
+  renderStock();
+}
+function ownerBadge(owner) {
+  if (!owner) return '';
+  return `<span class="owner-badge ${String(owner).toLowerCase()}">${esc(owner)}</span>`;
 }
 
 // ── FIREBASE: STOCK ───────────────────────────────
@@ -557,17 +641,19 @@ window.saveItem = async function() {
       document.getElementById('upload-status').textContent = '✅ Photo uploaded';
     }
 
+    const owner = addOwner || getSelectedOwner('add-owner-pick') || OWNERS[0];
     const item = {
       id: Date.now().toString(),
       name,
       photo: photoUrl,
+      owner,
       sizes: getSizesFromGrid('add-sizes-grid'),
       updatedAt: new Date().toLocaleDateString('en-IN'),
       updatedBy: currentAdmin
     };
 
     await pushItem(item);
-    await writeLog('add', item, 'Added — ' + nonZeroSummary(item.sizes));
+    await writeLog('add', item, `Added [owner: ${owner}] — ` + nonZeroSummary(item.sizes));
     resetForm();
     toast('Item saved!', 'success');
     switchTab('stock');
@@ -619,6 +705,8 @@ function resetForm() {
   document.getElementById('item-name').value = '';
   removePhoto();
   buildSizesGrid('add-sizes-grid', {});
+  addOwner = OWNERS.includes(currentAdmin) ? currentAdmin : OWNERS[0];
+  buildAddOwnerPick();
   document.getElementById('upload-status').textContent = '';
 }
 
@@ -627,11 +715,13 @@ window.renderStock = function() {
   const q = (document.getElementById('search-input')?.value || '').toLowerCase();
   const list = document.getElementById('stock-list');
   if (!list) return;
-  const filtered = stock.filter(it => it.name.toLowerCase().includes(q));
+  const filtered = stock.filter(it =>
+    it.name.toLowerCase().includes(q) &&
+    (ownerFilter === 'all' || (it.owner || '') === ownerFilter));
 
   if (!filtered.length) {
     list.innerHTML = `<div class="empty-state"><div class="ei">📦</div>
-      <p>${q ? 'No items match your search' : 'No items yet.'}</p></div>`;
+      <p>${q || ownerFilter !== 'all' ? 'No items match this view' : 'No items yet.'}</p></div>`;
     return;
   }
 
@@ -642,13 +732,18 @@ window.renderStock = function() {
           ? `<img class="stock-thumb" src="${item.photo}" alt="">`
           : `<div class="stock-thumb-ph">👕</div>`}
         <div class="stock-meta">
-          <div class="stock-name">${esc(item.name)}</div>
+          <div class="stock-name">${esc(item.name)}${ownerBadge(item.owner)}</div>
           <div class="stock-summary">${sizeSummary(item.sizes)}<br>
             ${item.updatedBy ? `<span class="stock-by">✎ ${esc(item.updatedBy)}</span> · ` : ''}${item.updatedAt || ''}</div>
         </div>
         <div class="stock-chevron">⌄</div>
       </div>
       <div class="stock-sizes">
+        ${currentRole === 'admin' ? `
+        <div style="margin-bottom:14px">
+          <div class="field-label">Owner</div>
+          <div class="owner-pick" id="owner-${item.id}"></div>
+        </div>` : ''}
         <div class="sizes-grid" id="eg-${item.id}"></div>
         ${currentRole === 'admin' ? `
         <div class="stock-actions">
@@ -658,7 +753,10 @@ window.renderStock = function() {
       </div>
     </div>`).join('');
 
-  filtered.forEach(item => buildSizesGrid(`eg-${item.id}`, item.sizes));
+  filtered.forEach(item => {
+    buildSizesGrid(`eg-${item.id}`, item.sizes);
+    if (currentRole === 'admin') buildItemOwnerPick(item.id, item.owner || null);
+  });
 }
 
 window.toggleItem = function(id) {
@@ -673,16 +771,21 @@ window.updateItem = async function(id) {
   if (btn) { btn.disabled = true; btn.textContent = 'SAVING…'; }
   try {
     const oldSizes = { ...item.sizes };
+    const oldOwner = item.owner || '';
     item.sizes = getSizesFromGrid(`eg-${id}`);
+    item.owner = getSelectedOwner(`owner-${id}`) || item.owner || null;
     item.updatedAt = new Date().toLocaleDateString('en-IN');
     item.updatedBy = currentAdmin;
     await pushItem(item);
 
+    const parts = [];
     const diff = SIZES
       .filter(s => (oldSizes[s] || 0) !== (item.sizes[s] || 0))
       .map(s => `${s} ${oldSizes[s] || 0}→${item.sizes[s] || 0}`)
       .join(', ');
-    await writeLog('update', item, diff || 'no size change');
+    if (diff) parts.push(diff);
+    if (oldOwner !== (item.owner || '')) parts.push(`owner ${oldOwner || '—'}→${item.owner || '—'}`);
+    await writeLog('update', item, parts.join(' · ') || 'no change');
 
     toast('Stock updated!', 'success');
     setTimeout(() => document.getElementById(`si-${id}`)?.classList.add('open'), 200);
@@ -697,7 +800,7 @@ window.deleteItem = async function(id) {
   if (!confirm('Delete this item?')) return;
   try {
     await removeItem(id);
-    if (item) await writeLog('delete', item, 'Deleted — was ' + nonZeroSummary(item.sizes));
+    if (item) await writeLog('delete', item, `Deleted [owner: ${item.owner || '—'}] — was ` + nonZeroSummary(item.sizes));
     toast('Deleted');
   } catch(e) {
     toast('Delete failed', 'error');
